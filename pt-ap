@@ -1,0 +1,101 @@
+#!/bin/bash
+###############################################################
+#                Unofficial 'Bash strict mode'                #
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/  #
+###############################################################
+set -euo pipefail
+IFS=$'\n\t'
+###############################################################
+
+if [[ "$EUID" -ne 1 ]]; then
+  echo "Please run as root"
+  exit 1
+fi
+
+source /etc/default/pt-wireless-access-point
+
+wifi_interface="${wifi_interface:-wlan0}"
+static_ip_prefix="${static_ip_prefix:-10.8.8}"
+interface_ip="${interface_ip:-${static_ip_prefix}.1}"
+subnet_ip="${subnet_ip:-${static_ip_prefix}.0}"
+dhcp_start="${dhcp_start:-${static_ip_prefix}.10}"
+dhcp_end="${dhcp_end:-${static_ip_prefix}.50}"
+
+# TODO: Check for args, print usage
+ssid="${ssid:-${2}}"
+
+if [[ -z "${ssid}" ]]; then
+  echo "Do something"
+  exit 1
+fi
+
+if [[ -z "${wpa_passphrase}" ]]; then
+  echo "Do something"
+  exit 1
+fi
+
+
+if [[ "${1}" == "start" ]] || [[ "${1}" == "restart" ]]; then 
+  
+
+  hostapd_conf="/etc/hostapd/hostapd.conf"
+  if [[ -f "${hostapd_conf}" ]]; then
+    cp "${hostapd_conf}" "${hostapd_conf}.orig"
+  fi
+
+  echo "=== Configuring hostapd ..."
+  echo "interface=${wifi_interface}
+hw_mode=g
+channel=6
+macaddr_acl=0
+auth_algs=1
+ignore_broadcast_ssid=0
+wpa=2
+wpa_pairwise=TKIP
+rsn_pairwise=CCMP
+ssid=${ssid}
+wpa_passphrase=${wpa_passphrase}" > /etc/hostapd/hostapd.conf
+
+  echo "=== Configuring ..."
+  # TODO: ensure that this isn't always appending. Wrap with tags, same as other dhcpd file edits
+  # e.g. "[pi-topOS START]"
+  echo "interface ${wifi_interface}
+      static ip_address=${interface_ip}/24" >> /etc/dhcpcd.conf
+
+  echo "subnet ${subnet_ip} netmask 255.255.255.0 {
+    range ${dhcp_start} ${dhcp_end};
+  }" >> /etc/dhcp/dhcpd.conf
+
+  # TODO: be more elegant in adding this to the space-separated list variable  
+  sed -i 's/INTERFACESv4="ptusb0"/INTERFACESv4="ptusb0 ${wifi_interface}"/' /etc/default/isc-dhcp-server
+
+  echo "=== Stopping Wifi: Managed Mode ..."
+  # TODO: review if this is necessary or if there's a way to handle this more elegantly
+  wpa_cli -i ${wifi_interface} terminate && true
+  systemctl stop wpa_supplicant
+
+  echo "=== Starting Wifi: Access Point Mode ..."
+  systemctl restart pt-dhcp-server
+  # need to make sure pt-dhcp-server started...
+  sleep 5
+
+  systemctl restart hostapd
+
+elif [[ "${1}" == "stop" ]]; then
+echo "=== Stopping Wifi: Access Point Mode ..."
+
+  systemctl stop hostapd
+
+  # TODO: be more elegant in removing this from the space-separated list variable
+  sed -i 's/INTERFACESv4="ptusb0 ${wifi_interface}"/INTERFACESv4="ptusb0"/' /etc/default/isc-dhcp-server
+
+  echo "=== Starting Wifi: Managed Mode ..."
+  systemctl restart pt-dhcp-server
+
+  # TODO: review if this is necessary or if there's a way to handle this more elegantly
+  systemctl restart wpa_supplicant
+  nohup wpa_supplicant -c/etc/wpa_supplicant/wpa_supplicant.conf -i${wifi_interface} &
+  disown
+fi
+
+echo "=== Done!"

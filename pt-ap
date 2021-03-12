@@ -37,7 +37,7 @@ if [[ -z "${wpa_passphrase}" ]]; then
 fi
 
 
-if [[ "${1}" == "start" ]] || [[ "${1}" == "restart" ]]; then 
+if [[ "${1}" == "start" ]] || [[ "${1}" == "restart" ]]; then
 
   hostapd_conf="/etc/hostapd/hostapd.conf"
   if [[ -f "${hostapd_conf}" ]]; then
@@ -79,7 +79,7 @@ wpa_passphrase=${wpa_passphrase}" > /etc/hostapd/hostapd.conf
   }" >> /etc/dhcp/dhcpd.conf
   fi
 
-  # TODO: be more elegant in adding this to the space-separated list variable  
+  # TODO: be more elegant in adding this to the space-separated list variable
   sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '${wifi_interface}'",' /etc/default/isc-dhcp-server
 
 

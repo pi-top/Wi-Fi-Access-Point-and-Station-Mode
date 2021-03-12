@@ -89,11 +89,12 @@ wpa_passphrase=${wpa_passphrase}" > /etc/hostapd/hostapd.conf
   systemctl stop wpa_supplicant
 
   echo "=== Starting Wifi: Access Point Mode ..."
+  # TODO: check the correct way these services need to be restarted
   systemctl restart pt-dhcp-server
-  # need to make sure pt-dhcp-server started...
-  sleep 5
-
+  sleep 3
   systemctl restart hostapd
+  sleep 3
+  systemctl restart isc-dhcp-server
 
 elif [[ "${1}" == "stop" ]]; then
 echo "=== Stopping Wifi: Access Point Mode ..."
@@ -107,6 +108,7 @@ echo "=== Stopping Wifi: Access Point Mode ..."
   sed -i 's/INTERFACESv4="ptusb0 '${wifi_interface}'"/INTERFACESv4="ptusb0"/' /etc/default/isc-dhcp-server
 
   echo "=== Starting Wifi: Managed Mode ..."
+  systemctl restart dhcpcd
   systemctl restart pt-dhcp-server
 
   # TODO: review if this is necessary or if there's a way to handle this more elegantly

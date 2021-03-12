@@ -1,6 +1,7 @@
 ssid=$(hostname)
 wifi_interface=wlan0
 static_ip_prefix=10.8.8
+subnet_mask=255.255.255.0
 interface_ip_suffix=1
 subnet_ip_suffix=0
 dhcp_start=10

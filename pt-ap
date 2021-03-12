@@ -18,6 +18,7 @@ wifi_interface="${wifi_interface:-wlan0}"
 static_ip_prefix="${static_ip_prefix:-10.8.8}"
 interface_ip="${interface_ip:-${static_ip_prefix}.1}"
 subnet_ip="${subnet_ip:-${static_ip_prefix}.0}"
+subnet_mask="${subnet_mask:-255.255.255.0}"
 dhcp_start="${dhcp_start:-${static_ip_prefix}.10}"
 dhcp_end="${dhcp_end:-${static_ip_prefix}.50}"
 
@@ -63,7 +64,12 @@ wpa_passphrase=${wpa_passphrase}" > /etc/hostapd/hostapd.conf
       static ip_address=${interface_ip}/24" >> /etc/dhcpcd.conf
 
   echo "subnet ${subnet_ip} netmask 255.255.255.0 {
-    range ${dhcp_start} ${dhcp_end};
+    range ${static_ip_prefix}.${dhcp_start} ${static_ip_prefix}.${dhcp_end};
+    option subnet-mask ${subnet_mask};
+    option routers ${interface_ip};
+    option domain-name-servers 8.8.8.8, 8.8.4.4;
+    option time-offset 0;
+    option broadcast-address ${static_ip_prefix}.255;
   }" >> /etc/dhcp/dhcpd.conf
 
   # TODO: be more elegant in adding this to the space-separated list variable  

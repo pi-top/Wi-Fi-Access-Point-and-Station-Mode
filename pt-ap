@@ -7,12 +7,12 @@ set -euo pipefail
 IFS=$'\n\t'
 ###############################################################
 
-if [[ "$EUID" -ne 1 ]]; then
+if [[ "$EUID" -ne 0 ]]; then
   echo "Please run as root"
   exit 1
 fi
 
-source /etc/default/pt-wireless-access-point
+source /etc/default/pt-wireless-access-point/default_config
 
 wifi_interface="${wifi_interface:-wlan0}"
 static_ip_prefix="${static_ip_prefix:-10.8.8}"
@@ -23,20 +23,20 @@ dhcp_end="${dhcp_end:-${static_ip_prefix}.50}"
 
 # TODO: Check for args, print usage
 ssid="${ssid:-${2}}"
+wpa_passphrase="${password:-${3}}"
 
 if [[ -z "${ssid}" ]]; then
-  echo "Do something"
+  echo "No ssid provided"
   exit 1
 fi
 
 if [[ -z "${wpa_passphrase}" ]]; then
-  echo "Do something"
+  echo "No wpa passphrase"
   exit 1
 fi
 
 
 if [[ "${1}" == "start" ]] || [[ "${1}" == "restart" ]]; then 
-  
 
   hostapd_conf="/etc/hostapd/hostapd.conf"
   if [[ -f "${hostapd_conf}" ]]; then

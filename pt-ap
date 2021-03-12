@@ -73,7 +73,8 @@ wpa_passphrase=${wpa_passphrase}" > /etc/hostapd/hostapd.conf
   }" >> /etc/dhcp/dhcpd.conf
 
   # TODO: be more elegant in adding this to the space-separated list variable  
-  sed -i 's/INTERFACESv4="ptusb0"/INTERFACESv4="ptusb0 ${wifi_interface}"/' /etc/default/isc-dhcp-server
+  sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '${wifi_interface}'",' /etc/default/isc-dhcp-server
+
 
   echo "=== Stopping Wifi: Managed Mode ..."
   # TODO: review if this is necessary or if there's a way to handle this more elegantly
@@ -93,7 +94,7 @@ echo "=== Stopping Wifi: Access Point Mode ..."
   systemctl stop hostapd
 
   # TODO: be more elegant in removing this from the space-separated list variable
-  sed -i 's/INTERFACESv4="ptusb0 ${wifi_interface}"/INTERFACESv4="ptusb0"/' /etc/default/isc-dhcp-server
+  sed -i 's/INTERFACESv4="ptusb0 '${wifi_interface}'"/INTERFACESv4="ptusb0"/' /etc/default/isc-dhcp-server
 
   echo "=== Starting Wifi: Managed Mode ..."
   systemctl restart pt-dhcp-server

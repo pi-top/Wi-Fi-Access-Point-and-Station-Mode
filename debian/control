@@ -12,7 +12,7 @@ Architecture: all
 Depends:
  ${misc:Depends},
 # 'echo'/'nohup'/'tee' commands
-coreutils (>= 8.30),
+ coreutils (>= 8.30),
  hostapd,
  sed (>= 4.7),
  systemd,

@@ -1,3 +1,2 @@
-pt-wireless-access-point: depends-on-essential-package-without-using-version Depends: coreutils
-pt-wireless-access-point: depends-on-essential-package-without-using-version Depends: sed
 pt-wireless-access-point: no-manual-page usr/bin/pt-ap
+pt-wireless-access-point: binary-without-manpage usr/bin/pt-ap

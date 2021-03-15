@@ -12,9 +12,9 @@ Architecture: all
 Depends:
  ${misc:Depends},
 # 'echo'/'nohup'/'tee' commands
- coreutils,
+coreutils (>= 8.30),
  hostapd,
- sed,
+ sed (>= 4.7),
  systemd,
  wpasupplicant,
 Description: pi-top Wireless Access Point

@@ -41,6 +41,7 @@ if [[ "${1}" == "start" ]] || [[ "${1}" == "restart" ]]; then
 
   hostapd_conf="/etc/hostapd/hostapd.conf"
   if [[ -f "${hostapd_conf}" ]]; then
+    echo "=== Backing up existing ${hostapd_conf}..."
     cp "${hostapd_conf}" "${hostapd_conf}.orig"
   fi
 
@@ -56,12 +57,15 @@ wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 ssid=${ssid}
 wpa_passphrase=${wpa_passphrase}" > /etc/hostapd/hostapd.conf
+  echo "=== New hostapd config:"
+  cat "${hostapd_conf}"
 
   echo "=== Configuring ..."
   # TODO: Wrap with tags, same as other dhcpd file edits
   # e.g. "[pi-topOS START]"
   if ! grep -q "interface ${wifi_interface}
       static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
+    echo "===== Setting static IP configuration in /etc/dhcpcd.conf..."
     echo "interface ${wifi_interface}
       static ip_address=${interface_ip}/24" >> /etc/dhcpcd.conf
   fi
@@ -69,6 +73,7 @@ wpa_passphrase=${wpa_passphrase}" > /etc/hostapd/hostapd.conf
   # TODO: Wrap with tags, same as other dhcpd file edits
   # e.g. "[pi-topOS START]"
   if ! grep -q "subnet ${subnet_ip} netmask ${subnet_mask} {" /etc/dhcp/dhcpd.conf; then
+    echo "===== Setting subnet configuration in /etc/dhcp/dhcpd.conf..."
     echo "subnet ${subnet_ip} netmask ${subnet_mask} {
     range ${static_ip_prefix}.${dhcp_start} ${static_ip_prefix}.${dhcp_end};
     option subnet-mask ${subnet_mask};
@@ -80,12 +85,14 @@ wpa_passphrase=${wpa_passphrase}" > /etc/hostapd/hostapd.conf
   fi
 
   # TODO: be more elegant in adding this to the space-separated list variable
+  echo "===== Configuring ${wifi_interface} in /etc/default/isc-dhcp-server..."
   sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '${wifi_interface}'",' /etc/default/isc-dhcp-server
-
 
   echo "=== Stopping Wifi: Managed Mode ..."
   # TODO: review if this is necessary or if there's a way to handle this more elegantly
+  echo "=== Stoppping ${wifi_interface} using wpa_cli"
   wpa_cli -i ${wifi_interface} terminate && true
+  echo "=== Stoppping  wpa_supplicant.service"
   systemctl stop wpa_supplicant
 
   echo "=== Starting Wifi: Access Point Mode ..."
@@ -97,8 +104,7 @@ wpa_passphrase=${wpa_passphrase}" > /etc/hostapd/hostapd.conf
   systemctl restart isc-dhcp-server
 
 elif [[ "${1}" == "stop" ]]; then
-echo "=== Stopping Wifi: Access Point Mode ..."
-
+  echo "=== Stopping Wifi: Access Point Mode ..."
   systemctl stop hostapd
 
   # TODO: be more elegant in removing the static ip setting

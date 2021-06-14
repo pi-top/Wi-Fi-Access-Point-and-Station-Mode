@@ -52,15 +52,33 @@ if [[ -z "${wpa_passphrase}" ]]; then
 	exit 1
 fi
 
-if [[ "${1}" == "start" ]] || [[ "${1}" == "restart" ]]; then
+restart_and_wait_for_service_state() {
+	service_name="${1}"
+	service_state="${2:-running}"
+	echo "Restarting service ${service_name}..."
+	systemctl restart "${service_name}"
+	while [ $(systemctl show -p ActiveState --value "active") != "active" ] && [ $(systemctl show -p SubState --value "${service_name}") != "${service_state}" ]; do
+		echo "Service ${service_name} isn't ready - sleeping for 2 sec"
+		sleep 2;
+	done
+}
 
+clean_config_files() {
+	# TODO: be more elegant in removing the static ip setting
+	sed -i -z 's,interface '${wifi_interface}'\n      static ip_address='${interface_ip}'/24,,g' /etc/dhcpcd.conf
+
+	# TODO: be more elegant in removing this from the space-separated list variable
+	sed -i 's/INTERFACESv4="ptusb0 '${wifi_interface}'"/INTERFACESv4="ptusb0"/' /etc/default/isc-dhcp-server
+}
+
+patch_config_files() {
 	hostapd_conf="/etc/hostapd/hostapd.conf"
 	if [[ -f "${hostapd_conf}" ]]; then
-		echo "=== Backing up existing ${hostapd_conf}..."
+		echo "- Backing up existing ${hostapd_conf}..."
 		cp "${hostapd_conf}" "${hostapd_conf}.orig"
 	fi
 
-	echo "=== Configuring hostapd ..."
+	echo "- Configuring hostapd ..."
 	echo "interface=${wifi_interface}
 hw_mode=g
 channel=6
@@ -72,15 +90,15 @@ wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 ssid=${ssid}
 wpa_passphrase=${wpa_passphrase}" >/etc/hostapd/hostapd.conf
-	echo "=== New hostapd config:"
+	echo "- New hostapd config:"
 	cat "${hostapd_conf}"
 
-	echo "=== Configuring ..."
+	echo "- Configuring ..."
 	# TODO: Wrap with tags, same as other dhcpd file edits
 	# e.g. "[pi-topOS START]"
 	if ! grep -q "interface ${wifi_interface}
       static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
-		echo "===== Setting static IP configuration in /etc/dhcpcd.conf..."
+		echo "-- Setting static IP configuration in /etc/dhcpcd.conf..."
 		echo "interface ${wifi_interface}
       static ip_address=${interface_ip}/24" >>/etc/dhcpcd.conf
 	fi
@@ -88,7 +106,7 @@ wpa_passphrase=${wpa_passphrase}" >/etc/hostapd/hostapd.conf
 	# TODO: Wrap with tags, same as other dhcpd file edits
 	# e.g. "[pi-topOS START]"
 	if ! grep -q "subnet ${subnet_ip} netmask ${subnet_mask} {" /etc/dhcp/dhcpd.conf; then
-		echo "===== Setting subnet configuration in /etc/dhcp/dhcpd.conf..."
+		echo "-- Setting subnet configuration in /etc/dhcp/dhcpd.conf..."
 		echo "subnet ${subnet_ip} netmask ${subnet_mask} {
     range ${static_ip_prefix}.${dhcp_start} ${static_ip_prefix}.${dhcp_end};
     option subnet-mask ${subnet_mask};
@@ -100,42 +118,40 @@ wpa_passphrase=${wpa_passphrase}" >/etc/hostapd/hostapd.conf
 	fi
 
 	# TODO: be more elegant in adding this to the space-separated list variable
-	echo "===== Configuring ${wifi_interface} in /etc/default/isc-dhcp-server..."
+	echo "-- Configuring ${wifi_interface} in /etc/default/isc-dhcp-server..."
 	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '${wifi_interface}'",' /etc/default/isc-dhcp-server
 
-	echo "=== Stopping Wifi: Managed Mode ..."
+}
+
+if [[ "${1}" == "start" ]] || [[ "${1}" == "restart" ]]; then
+	patch_config_files
+
+	echo "- Stopping Wifi: Managed Mode ..."
+
+	echo "- Stoppping ${wifi_interface} using wpa_cli"
 	# TODO: review if this is necessary or if there's a way to handle this more elegantly
-	echo "=== Stoppping ${wifi_interface} using wpa_cli"
 	wpa_cli -i "${wifi_interface}" terminate && true
-	echo "=== Stoppping  wpa_supplicant.service"
+	echo "- Stoppping  wpa_supplicant.service"
 	systemctl stop wpa_supplicant
 
-	echo "=== Starting Wifi: Access Point Mode ..."
-	# TODO: check the correct way these services need to be restarted
-	systemctl restart pt-dhcp-server
-	sleep 3
-	systemctl restart hostapd
-	sleep 3
-	systemctl restart isc-dhcp-server
+	echo "- Starting Wifi: Access Point Mode ..."
+	restart_and_wait_for_service_state pt-dhcp-server exited
+	restart_and_wait_for_service_state hostapd running
 
 elif [[ "${1}" == "stop" ]]; then
-	echo "=== Stopping Wifi: Access Point Mode ..."
+	echo "- Stopping Wifi: Access Point Mode ..."
 	systemctl stop hostapd
 
-	# TODO: be more elegant in removing the static ip setting
-	sed -i -z 's,interface '${wifi_interface}'\n      static ip_address='${interface_ip}'/24,,g' /etc/dhcpcd.conf
+	clean_config_files
 
-	# TODO: be more elegant in removing this from the space-separated list variable
-	sed -i 's/INTERFACESv4="ptusb0 '${wifi_interface}'"/INTERFACESv4="ptusb0"/' /etc/default/isc-dhcp-server
-
-	echo "=== Starting Wifi: Managed Mode ..."
-	systemctl restart dhcpcd
-	systemctl restart pt-dhcp-server
+	echo "- Starting Wifi: Managed Mode ..."
+	restart_and_wait_for_service_state dhcpcd running
+	restart_and_wait_for_service_state pt-dhcp-server exited
 
 	# TODO: review if this is necessary or if there's a way to handle this more elegantly
-	systemctl restart wpa_supplicant
+	restart_and_wait_for_service_state wpa_supplicant running
 	nohup wpa_supplicant -c/etc/wpa_supplicant/wpa_supplicant.conf -i${wifi_interface} &
 	disown
 fi
 
-echo "=== Done!"
+echo "- Done!"

@@ -1,4 +1,5 @@
 ssid=$(hostname)
+wpa_passphrase=12345678
 wifi_interface=wlan0
 static_ip_prefix=10.8.8
 subnet_mask=255.255.255.0

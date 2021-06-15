@@ -10,11 +10,11 @@ IFS=$'\n\t'
 AP_MODE_CONFIG_FILE="/home/pi/dev/pt-wireless-access-point-deb/default_config"
 
 usage_and_exit() {
-	echo -e "Usage:\n\t${0} <start|stop> <SSID> <PASSPHRASE>"
+	echo -e "Usage:\\n\\t${0} <start|stop> <SSID> <PASSPHRASE>"
 	echo "where:"
-	echo -e "\t<start|stop>: start or stop AP mode"
-	echo -e "\t<SSID>: name of the access point wireless network. If not provided, uses the SSID from ${AP_MODE_CONFIG_FILE}"
-	echo -e "\t<PASSPHRASE>: network password. If not provided, uses the passphrase from ${AP_MODE_CONFIG_FILE}"
+	echo -e "\\t<start|stop>: start or stop AP mode"
+	echo -e "\\t<SSID>: name of the access point wireless network. If not provided, uses the SSID from ${AP_MODE_CONFIG_FILE}"
+	echo -e "\\t<PASSPHRASE>: network password. If not provided, uses the passphrase from ${AP_MODE_CONFIG_FILE}"
 	exit 1
 }
 
@@ -23,20 +23,26 @@ restart_and_wait_for_service_state() {
 	service_state="${2:-running}"
 	echo "Restarting service ${service_name}..."
 	systemctl restart "${service_name}"
-	while [ $(systemctl show -p ActiveState --value "active") != "active" ] && [ $(systemctl show -p SubState --value "${service_name}") != "${service_state}" ]; do
-		echo "Service ${service_name} isn't ready - sleeping for 2 sec"
+	while [ "$(systemctl show -p ActiveState --value "${service_name}")" != "active" ] || [ "$(systemctl show -p SubState --value "${service_name}")" != "${service_state}" ]; do
+		echo "Service ${service_name} isn't ready - sleeping for 2 seconds..."
 		sleep 2
 	done
 }
 
 clean_config_files() {
+	hostapd_conf="/etc/hostapd/hostapd.conf"
+	if [[ -f "${hostapd_conf}.orig" ]]; then
+		echo "Restoring previous hostapd configuration from ${hostapd_conf}.orig"
+		mv "${hostapd_conf}.orig" "${hostapd_conf}"
+	fi
+
 	echo "Restoring /etc/dhcpcd.conf"
 	# TODO: be more elegant in removing the static ip setting
-	sed -i -z 's,interface '${wifi_interface}'\n      static ip_address='${interface_ip}'/24,,g' /etc/dhcpcd.conf
+	sed -i -z 's,interface '"${wifi_interface}"'\n      static ip_address='"${interface_ip}"'/24,,g' /etc/dhcpcd.conf
 
 	echo "Restoring /etc/default/isc-dhcp-server"
 	# TODO: be more elegant in removing this from the space-separated list variable
-	sed -i 's/INTERFACESv4="ptusb0 '${wifi_interface}'"/INTERFACESv4="ptusb0"/' /etc/default/isc-dhcp-server
+	sed -i 's/INTERFACESv4="ptusb0 '"${wifi_interface}"'"/INTERFACESv4="ptusb0"/' /etc/default/isc-dhcp-server
 }
 
 patch_config_files() {
@@ -84,7 +90,7 @@ wpa_passphrase=${wpa_passphrase}" >/etc/hostapd/hostapd.conf
 
 	# TODO: be more elegant in adding this to the space-separated list variable
 	echo "Configuring ${wifi_interface} in /etc/default/isc-dhcp-server..."
-	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '${wifi_interface}'",' /etc/default/isc-dhcp-server
+	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '"${wifi_interface}"'",' /etc/default/isc-dhcp-server
 }
 
 start_ap_mode() {
@@ -123,11 +129,12 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 if [[ "${1}" != "start" ]] && [[ "${1}" != "stop" ]]; then
-	echo "Argument does not match 'start' or 'stop."
+	echo "Argument does not match 'start' or 'stop'."
 	echo ""
 	usage_and_exit
 fi
 
+# shellcheck disable=SC1090
 source "${AP_MODE_CONFIG_FILE}"
 
 wifi_interface="${wifi_interface:-wlan0}"

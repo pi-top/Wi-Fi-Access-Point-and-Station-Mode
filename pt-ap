@@ -25,7 +25,7 @@ restart_and_wait_for_service_state() {
 	systemctl restart "${service_name}"
 	while [ $(systemctl show -p ActiveState --value "active") != "active" ] && [ $(systemctl show -p SubState --value "${service_name}") != "${service_state}" ]; do
 		echo "Service ${service_name} isn't ready - sleeping for 2 sec"
-		sleep 2;
+		sleep 2
 	done
 }
 
@@ -85,7 +85,6 @@ wpa_passphrase=${wpa_passphrase}" >/etc/hostapd/hostapd.conf
 	# TODO: be more elegant in adding this to the space-separated list variable
 	echo "Configuring ${wifi_interface} in /etc/default/isc-dhcp-server..."
 	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '${wifi_interface}'",' /etc/default/isc-dhcp-server
-
 }
 
 start_ap_mode() {
@@ -95,31 +94,28 @@ start_ap_mode() {
 	echo "Started AP mode with SSID ${ssid}"
 }
 
-stop_ap_mode() {
-	echo "Stopping Wifi: Access Point Mode ..."
-	systemctl stop hostapd
-	echo "Stopped AP mode"
+stop_ap_mode_if_active() {
+	if systemctl status hostapd &>/dev/null; then
+		echo "Stopping Wifi: Access Point Mode ..."
+		systemctl stop hostapd
+		echo "Stopped AP mode"
+	fi
 }
 
 start_wifi_managed_mode() {
 	echo "Starting Wifi: Managed Mode ..."
 	restart_and_wait_for_service_state dhcpcd running
 	restart_and_wait_for_service_state pt-dhcp-server exited
-
-	# TODO: review if this is necessary or if there's a way to handle this more elegantly
 	restart_and_wait_for_service_state wpa_supplicant running
-	wpa_supplicant -c/etc/wpa_supplicant/wpa_supplicant.conf -i${wifi_interface} </dev/null &>/dev/null &
 }
 
 stop_wifi_managed_mode() {
 	echo "Stopping Wifi: Managed Mode ..."
-	echo "Stoppping ${wifi_interface} using wpa_cli"
-	# TODO: review if this is necessary or if there's a way to handle this more elegantly
-	wpa_cli -i "${wifi_interface}" terminate && true
-	echo "Stoppping  wpa_supplicant.service"
+	if wpa_cli -i "${wifi_interface}" status &>/dev/null; then
+		wpa_cli -i "${wifi_interface}" terminate && true
+	fi
 	systemctl stop wpa_supplicant
 }
-
 
 if [[ "$EUID" -ne 0 ]]; then
 	echo "Please run as root"
@@ -158,12 +154,12 @@ if [[ -z "${wpa_passphrase}" ]]; then
 fi
 
 if [[ "${1}" == "start" ]]; then
-	stop_ap_mode
+	stop_ap_mode_if_active
 	patch_config_files
 	stop_wifi_managed_mode
 	start_ap_mode
 elif [[ "${1}" == "stop" ]]; then
-	stop_ap_mode
+	stop_ap_mode_if_active
 	clean_config_files
 	start_wifi_managed_mode
 fi

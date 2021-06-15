@@ -7,7 +7,9 @@ set -euo pipefail
 IFS=$'\n\t'
 ###############################################################
 
-AP_MODE_CONFIG_FILE="/home/pi/dev/pt-wireless-access-point-deb/default_config"
+PACKAGE_CONFIG_DIR="/etc/default/pt-wireless-access-point"
+AP_MODE_CONFIG_FILE="${PACKAGE_CONFIG_DIR}/default_config"
+HOSTAPD_BASE_CONF="${PACKAGE_CONFIG_DIR}/hostapd_base.conf"
 
 usage_and_exit() {
 	echo -e "Usage:\\n\\t${0} <start|stop> <SSID> <PASSPHRASE>"
@@ -53,17 +55,10 @@ patch_config_files() {
 	fi
 
 	echo "Configuring hostapd ..."
+	cp "${HOSTAPD_BASE_CONF}" /etc/hostapd/hostapd.conf
 	echo "interface=${wifi_interface}
-hw_mode=g
-channel=6
-macaddr_acl=0
-auth_algs=1
-ignore_broadcast_ssid=0
-wpa=2
-wpa_pairwise=TKIP
-rsn_pairwise=CCMP
 ssid=${ssid}
-wpa_passphrase=${wpa_passphrase}" >/etc/hostapd/hostapd.conf
+wpa_passphrase=${wpa_passphrase}" >>/etc/hostapd/hostapd.conf
 
 	if ! grep -q "interface ${wifi_interface}
 static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then

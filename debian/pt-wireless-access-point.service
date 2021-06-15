@@ -8,6 +8,7 @@ Restart=on-failure
 RestartSec=0
 ExecStart=/usr/bin/pt-ap start
 ExecStop=/usr/bin/pt-ap stop
+RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target

@@ -38,11 +38,11 @@ clean_config_files() {
 
 	echo "Restoring /etc/dhcpcd.conf"
 	# TODO: be more elegant in removing the static ip setting
-	sed -i -z 's,interface '"${wifi_interface}"'\n      static ip_address='"${interface_ip}"'/24,,g' /etc/dhcpcd.conf
+	sed -i -z 's|interface '"${wifi_interface}"'\nstatic ip_address='"${interface_ip}"'/24||p' /etc/dhcpcd.conf
 
 	echo "Restoring /etc/default/isc-dhcp-server"
 	# TODO: be more elegant in removing this from the space-separated list variable
-	sed -i 's/INTERFACESv4="ptusb0 '"${wifi_interface}"'"/INTERFACESv4="ptusb0"/' /etc/default/isc-dhcp-server
+	sed -i 's|INTERFACESv4="ptusb0 '"${wifi_interface}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server
 }
 
 patch_config_files() {
@@ -66,16 +66,15 @@ ssid=${ssid}
 wpa_passphrase=${wpa_passphrase}" >/etc/hostapd/hostapd.conf
 
 	if ! grep -q "interface ${wifi_interface}
-      static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
-		echo "Setting static IP configuration in /etc/dhcpcd.conf..."
+static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
+		echo "Setting static IP configuration in /etc/dhcpcd.conf ..."
 		# TODO: Wrap with tags, same as other dhcpd file edits
 		# e.g. "[pi-topOS START]"
-		echo "interface ${wifi_interface}
-      static ip_address=${interface_ip}/24" >>/etc/dhcpcd.conf
+		echo -e "interface ${wifi_interface}\\nstatic ip_address=${interface_ip}/24" >>/etc/dhcpcd.conf
 	fi
 
 	if ! grep -q "subnet ${subnet_ip} netmask ${subnet_mask} {" /etc/dhcp/dhcpd.conf; then
-		echo "Setting subnet configuration in /etc/dhcp/dhcpd.conf..."
+		echo "Setting subnet configuration in /etc/dhcp/dhcpd.conf ..."
 		# TODO: Wrap with tags, same as other dhcpd file edits
 		# e.g. "[pi-topOS START]"
 		echo "subnet ${subnet_ip} netmask ${subnet_mask} {

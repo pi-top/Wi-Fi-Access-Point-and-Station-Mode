@@ -12,11 +12,12 @@ AP_MODE_CONFIG_FILE="${PACKAGE_CONFIG_DIR}/defaults.conf"
 HOSTAPD_BASE_CONF="${PACKAGE_CONFIG_DIR}/hostapd_base.conf"
 
 usage_and_exit() {
-	echo -e "Usage:\\n\\t${0} <start|stop> <SSID> <PASSPHRASE>"
+	echo "Customize the access point settings by editing ${AP_MODE_CONFIG_FILE}"
+	echo ""
+	echo -e "Usage:\\n\\t${0} <start|stop>"
 	echo "where:"
 	echo -e "\\t<start|stop>: start or stop AP mode"
-	echo -e "\\t<SSID>: name of the access point wireless network. If not provided, uses the SSID from ${AP_MODE_CONFIG_FILE}"
-	echo -e "\\t<PASSPHRASE>: network password. If not provided, uses the passphrase from ${AP_MODE_CONFIG_FILE}"
+	echo ""
 	exit 1
 }
 

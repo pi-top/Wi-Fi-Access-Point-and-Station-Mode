@@ -16,6 +16,8 @@ Depends:
  dhcpcd5,
  hostapd,
  isc-dhcp-server,
+# 'ifconfig' command
+ net-tools,
  sed (>= 4.7),
  systemd,
  wpasupplicant,

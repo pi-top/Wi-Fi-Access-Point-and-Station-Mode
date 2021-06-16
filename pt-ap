@@ -82,7 +82,9 @@ static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
 
 start_ap_mode() {
 	echo "Starting Wifi: Access Point Mode ..."
-	restart_and_wait_for_service_state pt-dhcp-server exited
+	if systemctl status pt-dhcp-server &>/dev/null; then
+		restart_and_wait_for_service_state pt-dhcp-server exited
+	fi
 	restart_and_wait_for_service_state hostapd running
 	echo "Started AP mode with SSID ${ssid}"
 }
@@ -98,7 +100,9 @@ stop_ap_mode_if_active() {
 start_wifi_managed_mode() {
 	echo "Starting Wifi: Managed Mode ..."
 	restart_and_wait_for_service_state dhcpcd running
-	restart_and_wait_for_service_state pt-dhcp-server exited
+	if systemctl status pt-dhcp-server &>/dev/null; then
+		restart_and_wait_for_service_state pt-dhcp-server exited
+	fi
 	restart_and_wait_for_service_state wpa_supplicant running
 }
 

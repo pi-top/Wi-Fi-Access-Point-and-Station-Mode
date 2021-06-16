@@ -8,7 +8,7 @@ IFS=$'\n\t'
 ###############################################################
 
 PACKAGE_CONFIG_DIR="/etc/default/rpi-wifi-ap"
-AP_MODE_CONFIG_FILE="${PACKAGE_CONFIG_DIR}/default_config"
+AP_MODE_CONFIG_FILE="${PACKAGE_CONFIG_DIR}/defaults.conf"
 HOSTAPD_BASE_CONF="${PACKAGE_CONFIG_DIR}/hostapd_base.conf"
 
 usage_and_exit() {

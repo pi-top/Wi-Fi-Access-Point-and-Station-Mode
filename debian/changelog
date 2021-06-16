@@ -1,4 +1,4 @@
-pt-wireless-access-point (0.1.0) buster; urgency=medium
+rpi-wifi-ap (0.1.0) buster; urgency=medium
 
   * First version
 

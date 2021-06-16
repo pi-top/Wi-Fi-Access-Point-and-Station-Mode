@@ -1,13 +1,13 @@
 [Unit]
-Description=pi-topOS Wireless Access Point
+Description=Raspberry Pi Wireless Access Point
 Documentation=https://knowledgebase.pi-top.com/knowledge
 
 [Service]
 Type=simple
 Restart=on-failure
 RestartSec=0
-ExecStart=/usr/bin/pt-ap start
-ExecStop=/usr/bin/pt-ap stop
+ExecStart=/usr/bin/rpi-wifi-ap start
+ExecStop=/usr/bin/rpi-wifi-ap stop
 RemainAfterExit=yes
 
 [Install]

@@ -7,8 +7,10 @@ By default, the SSID is the hostname of the machine that runs the script, and th
 ## Usage
 
 ``` bash
-Usage: ./rpi-wifi-ap <start|stop>
-Application that sets up a Raspberry Pi as a wireless access point.
+Usage:
+	./rpi-wifi-ap <start|stop>
+where:
+	<start|stop>: start or stop AP mode
 ```
 
 ## AP Customization

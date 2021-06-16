@@ -13,7 +13,9 @@ Depends:
  ${misc:Depends},
 # 'echo'/'nohup'/'tee' commands
  coreutils (>= 8.30),
+ dhcpcd5,
  hostapd,
+ isc-dhcp-server,
  sed (>= 4.7),
  systemd,
  wpasupplicant,

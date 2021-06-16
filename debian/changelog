@@ -1,3 +1,51 @@
+rpi-wifi-ap (0.1.1) buster; urgency=medium
+
+  [ Mike Roberts ]
+  * First commit
+
+  [ Jorge Capona ]
+  * Update changelog & copyright
+  * Fix script: root check & unbound variables
+  * Add options to dhcpcd configuration
+  * Fix sed not interpreting bash variables
+  * Check files before appending, cleanup on stop
+  * Restart systemd services on start/stop
+  * Add pre-commit yaml
+  * pre-commit fixes
+  * Override lintian issues
+
+  [ Mike Roberts ]
+  * Fix Lintian warnings
+  * Fix control file formatting
+  * Standards-Version: 4.5.1
+  * Add GitHub workflows
+
+  [ Jorge Capona ]
+  * Increase verbosity of AP script
+  * Check args & add usage
+  * Refactor script into functions
+  * Add service unit file
+  * Remove duplicated lintian-override
+  * Refactor script into functions
+  * Verify if commands are required before running them
+  * Restore hostapd config file when stopping AP mode
+  * Update pre-commit yaml & fix source
+  * Update github workflows
+  * Add RemainAfterExit=yes to service unit file
+  * Move hostapd base configuration to a separate file
+  * Move TODO's to Github issues
+  * Check if pt-dhcp-server exists before restarting
+  * Update package dependencies
+  * Rename package & binary to "rpi-wifi-ap"
+  * Update lintian-override
+  * Set/release interface IP address on start/stop
+  * Rename defaults_config -> defaults.conf
+  * Update README
+  * Update README
+  * Update README
+
+ -- pi-top <deb-maintainers@pi-top.com>  Wed, 16 Jun 2021 23:39:32 +0000
+
 rpi-wifi-ap (0.1.0) buster; urgency=medium
 
   * First version

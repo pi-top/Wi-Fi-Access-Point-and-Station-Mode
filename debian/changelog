@@ -1,3 +1,13 @@
+rpi-wifi-ap (0.2.0) buster; urgency=medium
+
+  * Reorganize repository structure
+  * Drop unused Lintian override
+  * Unmask hostapd service in main script
+  * Don't restart isc-dhcp-server if pt-dhcp-server is installed
+  * Support non pi-topOS config files
+
+ -- pi-top <deb-maintainers@pi-top.com>  Thu, 17 Jun 2021 18:01:50 +0000
+
 rpi-wifi-ap (0.1.0) buster; urgency=medium
 
   * First version

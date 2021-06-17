@@ -8,8 +8,8 @@ is_first_install() {
 }
 
 if is_first_install "$@"; then
-	if [ "$(systemctl show -p LoadState --value hostapd)" == "masked" ]; then
-        systemctl unmask hostapd
+	if [ "$(deb-systemd-helper show -p LoadState --value hostapd)" == "masked" ]; then
+        deb-systemd-helper unmask hostapd
     fi
 fi
 

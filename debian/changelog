@@ -1,3 +1,9 @@
+rpi-wifi-ap (0.2.1) buster; urgency=medium
+
+  * Disable wpa_supplicant for wifi interface using nohook in dhcpcd.conf
+
+ -- pi-top <deb-maintainers@pi-top.com>  Thu, 17 Jun 2021 22:44:16 +0000
+
 rpi-wifi-ap (0.2.0) buster; urgency=medium
 
   * Reorganize repository structure

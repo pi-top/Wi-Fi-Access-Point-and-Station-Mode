@@ -93,8 +93,9 @@ start_ap_mode() {
 	ifconfig "${wifi_interface}" "${interface_ip}" netmask "${subnet_mask}"
 	if systemctl status pt-dhcp-server &>/dev/null; then
 		restart_and_wait_for_service_state pt-dhcp-server exited
+	else
+		restart_and_wait_for_service_state isc-dhcp-server running
 	fi
-	restart_and_wait_for_service_state isc-dhcp-server running
 	unmask_service_if_necessary hostapd
 	restart_and_wait_for_service_state hostapd running
 	echo "Started AP mode with SSID ${ssid}"

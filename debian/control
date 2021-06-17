@@ -11,14 +11,11 @@ Package: rpi-wifi-ap
 Architecture: all
 Depends:
  ${misc:Depends},
-# 'echo'/'nohup'/'tee' commands
- coreutils (>= 8.30),
  dhcpcd5,
  hostapd,
  isc-dhcp-server,
 # 'ifconfig' command
  net-tools,
- sed (>= 4.7),
  systemd,
  wpasupplicant,
 Description: Raspberry Pi Wireless Access Point

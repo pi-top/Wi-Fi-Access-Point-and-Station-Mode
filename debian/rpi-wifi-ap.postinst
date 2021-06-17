@@ -1,0 +1,16 @@
+#!/bin/bash -e
+
+is_first_install() {
+	if [ -z "${2}" ]; then
+		return 0
+	fi
+	return 1
+}
+
+if is_first_install "$@"; then
+	if [ "$(systemctl show -p LoadState --value hostapd)" == "masked" ]; then
+        systemctl unmask hostapd
+    fi
+fi
+
+#DEBHELPER#

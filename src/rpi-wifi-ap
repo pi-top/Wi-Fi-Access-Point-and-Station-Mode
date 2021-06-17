@@ -33,6 +33,12 @@ restart_and_wait_for_service_state() {
 	done
 }
 
+unmask_service_if_necessary() {
+	if [ "$(systemctl show -p LoadState --value "${1}")" == "masked" ]; then
+		systemctl unmask "${1}"
+	fi
+}
+
 clean_config_files() {
 	hostapd_conf="/etc/hostapd/hostapd.conf"
 	if [[ -f "${hostapd_conf}.orig" ]]; then
@@ -89,6 +95,7 @@ start_ap_mode() {
 		restart_and_wait_for_service_state pt-dhcp-server exited
 	fi
 	restart_and_wait_for_service_state isc-dhcp-server running
+	unmask_service_if_necessary hostapd
 	restart_and_wait_for_service_state hostapd running
 	echo "Started AP mode with SSID ${ssid}"
 }

@@ -1,4 +1,4 @@
-rpi-wifi-ap (0.1.1) buster; urgency=medium
+rpi-wifi-ap (0.2.0) buster; urgency=medium
 
   * Reorganize repository structure
   * Drop unused Lintian override

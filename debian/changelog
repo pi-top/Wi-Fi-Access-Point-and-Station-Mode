@@ -1,14 +1,8 @@
 rpi-wifi-ap (0.1.1) buster; urgency=medium
 
-  [ Mike Roberts ]
-  * Move files to src/; update README
+  * Reorganize repository structure
   * Drop unused Lintian override
   * Update extended description
-
-  [ Jorge Capona ]
-  * Unmask hostapd service in postinst
-  * systemctl -> deb-systemd-helper
-  * Use systemctl to determine service state postinst
   * Unmask hostapd service in main script
   * Don't restart isc-dhcp-server if pt-dhcp-server is installed
   * Support non pi-topOS config files

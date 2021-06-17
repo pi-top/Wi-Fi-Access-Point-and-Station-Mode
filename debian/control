@@ -19,4 +19,9 @@ Depends:
  systemd,
  wpasupplicant,
 Description: Raspberry Pi Wireless Access Point
- Script to handle configuring a Raspberry Pi's wireless interface mode.
+ Easily start and stop using your Raspberry Pi as a wireless access point.
+ .
+ This application is specifically developed to work on Raspberry Pi OS and
+ derivatives, with some additional functionality to work with pi-topOS's DHCP
+ server that is used for connecting to a pi-top [4] via the display cable (or
+ connecting to a Pi via USB-OTG from the power connector).

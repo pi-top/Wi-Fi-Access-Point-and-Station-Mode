@@ -1,2 +1,0 @@
-# Jenkins fails with 4.5.1, so need to ignore the Lintian info tag until this is resolved
-rpi-wifi-ap source: out-of-date-standards-version 4.5.0 (released 2020-01-20) (current is 4.5.1)

@@ -51,6 +51,7 @@ clean_config_files() {
 
 	echo "Restoring /etc/default/isc-dhcp-server"
 	sed -i 's|INTERFACESv4="ptusb0 '"${wifi_interface}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server
+	sed -i 's|INTERFACESv4="'"${wifi_interface}"'"|INTERFACESv4=""|' /etc/default/isc-dhcp-server
 }
 
 patch_config_files() {
@@ -86,6 +87,7 @@ static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
 
 	echo "Configuring ${wifi_interface} in /etc/default/isc-dhcp-server..."
 	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '"${wifi_interface}"'",' /etc/default/isc-dhcp-server
+	sed -i 's,INTERFACESv4="",INTERFACESv4="'"${wifi_interface}"'",' /etc/default/isc-dhcp-server
 }
 
 start_ap_mode() {

@@ -15,7 +15,7 @@ usage_and_exit() {
 	echo "Application that sets up a Raspberry Pi as a wireless access point."
 	echo "Customize the access point settings by editing ${AP_MODE_CONFIG_FILE}"
 	echo ""
-	echo -e "Usage:\\r\\t${0} {start,stop,status}"
+	echo -e "Usage:\\n\\t${0} {start,stop,status}"
 	echo "where:"
 	echo -e "\\tstart\\t: use Raspberry Pi as wireless access point."
 	echo -e "\\tstop\\t: stop access point mode and restore previous configuration."

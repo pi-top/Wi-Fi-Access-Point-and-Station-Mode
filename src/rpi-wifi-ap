@@ -15,9 +15,11 @@ usage_and_exit() {
 	echo "Application that sets up a Raspberry Pi as a wireless access point."
 	echo "Customize the access point settings by editing ${AP_MODE_CONFIG_FILE}"
 	echo ""
-	echo -e "Usage:\\n\\t${0} <start|stop>"
+	echo -e "Usage:\\n\\t${0} {start,stop,status}"
 	echo "where:"
-	echo -e "\\t<start|stop>: start or stop AP mode"
+	echo -e "\\tstart\\t: use Raspberry Pi as wireless access point."
+	echo -e "\\tstop\\t: stop access point mode and restore previous configuration."
+	echo -e "\\tstatus\\t: display access point state and information."
 	echo ""
 	exit 1
 }
@@ -131,13 +133,31 @@ stop_wifi_managed_mode() {
 	restart_and_wait_for_service_state wpa_supplicant running
 }
 
+get_hostapd_state() {
+	state=$(systemctl show -p ActiveState --value hostapd)
+	echo "${state}"
+}
+
+print_current_status() {
+	state=$(get_hostapd_state)
+	echo "State: ${state}"
+	if [[ "${state}" == "active" ]]; then
+		echo "SSID: ${ssid}"
+		echo "Passphrase: ${wpa_passphrase}"
+		echo "IP Address: ${interface_ip}"
+	fi
+}
+
 if [[ "$EUID" -ne 0 ]]; then
 	echo "Please run as root"
 	exit 1
 fi
 
-if [[ "${1}" != "start" ]] && [[ "${1}" != "stop" ]]; then
-	echo "Argument does not match 'start' or 'stop'."
+command=${1:-}
+valid_commands=("start" "stop" "status")
+if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
+	# shellcheck disable=SC2145
+	echo "Invalid argument: accepted values are: ${valid_commands[@]}."
 	echo ""
 	usage_and_exit
 fi
@@ -168,13 +188,16 @@ if [[ -z "${wpa_passphrase}" ]]; then
 	usage_and_exit
 fi
 
-if [[ "${1}" == "start" ]]; then
+if [[ "${command}" == "start" ]]; then
 	stop_ap_mode_if_active
 	patch_config_files
 	stop_wifi_managed_mode
 	start_ap_mode
-elif [[ "${1}" == "stop" ]]; then
+	print_current_status
+elif [[ "${command}" == "stop" ]]; then
 	stop_ap_mode_if_active
 	clean_config_files
 	start_wifi_managed_mode
+elif [[ "${command}" == "status" ]]; then
+	print_current_status
 fi

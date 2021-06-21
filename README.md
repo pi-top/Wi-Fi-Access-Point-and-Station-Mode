@@ -13,7 +13,7 @@ where:
 
 ## Default Behaviour
 
-By default, the SSID is the hostname of the machine that runs the script, and the default password is `12345678`; it's highly recommended that you change it. The configuration of the network created by the access point is read from `defaults.conf`.
+By default, the SSID is the hostname of the machine that runs the script, and the default password is set based on the Raspberry Pi serial number. The configuration of the network created by the access point is read from `defaults.conf`.
 
 ## AP Customization
 

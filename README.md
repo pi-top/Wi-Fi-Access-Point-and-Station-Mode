@@ -6,9 +6,11 @@
 
 ``` bash
 Usage:
-	./rpi-wifi-ap <start|stop>
+    rpi-wifi-ap {start,stop,status}
 where:
-	<start|stop>: start or stop AP mode
+    start  : use Raspberry Pi as wireless access point.
+    stop   : stop access point mode and restore previous configuration.
+    status : display access point state and information.
 ```
 
 ## Default Behaviour

@@ -165,6 +165,7 @@ remove_virtual_interface() {
 	rm /etc/udev/rules.d/70-persistent-net.rules || true
 	udevadm control --reload-rules
 	udevadm trigger
+	iw dev "${access_point_interface}" del
 }
 
 if [[ "$EUID" -ne 0 ]]; then

@@ -49,11 +49,11 @@ clean_config_files() {
 	fi
 
 	echo "Restoring /etc/dhcpcd.conf"
-	sed -i -z 's|interface '"${wifi_interface}"'\nstatic ip_address='"${interface_ip}"'/24\nnohook wpa_supplicant||p' /etc/dhcpcd.conf
+	sed -i -z 's|interface '"${access_point_interface}"'\nstatic ip_address='"${interface_ip}"'/24||p' /etc/dhcpcd.conf
 
 	echo "Restoring /etc/default/isc-dhcp-server"
-	sed -i 's|INTERFACESv4="ptusb0 '"${wifi_interface}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server
-	sed -i 's|INTERFACESv4="'"${wifi_interface}"'"|INTERFACESv4=""|' /etc/default/isc-dhcp-server
+	sed -i 's|INTERFACESv4="ptusb0 '"${access_point_interface}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server
+	sed -i 's|INTERFACESv4="'"${access_point_interface}"'"|INTERFACESv4=""|' /etc/default/isc-dhcp-server
 }
 
 patch_config_files() {
@@ -65,15 +65,14 @@ patch_config_files() {
 
 	echo "Configuring hostapd ..."
 	cp "${HOSTAPD_BASE_CONF}" /etc/hostapd/hostapd.conf
-	echo "interface=${wifi_interface}
+	echo "interface=${access_point_interface}
 ssid=${ssid}
 wpa_passphrase=${wpa_passphrase}" >>/etc/hostapd/hostapd.conf
 
-	if ! grep -q "interface ${wifi_interface}
-static ip_address=${interface_ip}/24
-nohook wpa_supplicant" /etc/dhcpcd.conf; then
+	if ! grep -q "interface ${access_point_interface}
+static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
 		echo "Setting static IP configuration in /etc/dhcpcd.conf ..."
-		echo -e "interface ${wifi_interface}\\nstatic ip_address=${interface_ip}/24\\nnohook wpa_supplicant" >>/etc/dhcpcd.conf
+		echo -e "interface ${access_point_interface}\\nstatic ip_address=${interface_ip}/24" >>/etc/dhcpcd.conf
 	fi
 
 	if ! grep -q "subnet ${subnet_ip} netmask ${subnet_mask} {" /etc/dhcp/dhcpd.conf; then
@@ -88,15 +87,15 @@ nohook wpa_supplicant" /etc/dhcpcd.conf; then
   }" >>/etc/dhcp/dhcpd.conf
 	fi
 
-	echo "Configuring ${wifi_interface} in /etc/default/isc-dhcp-server..."
-	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '"${wifi_interface}"'",' /etc/default/isc-dhcp-server
-	sed -i 's,INTERFACESv4="",INTERFACESv4="'"${wifi_interface}"'",' /etc/default/isc-dhcp-server
+	echo "Configuring ${access_point_interface} in /etc/default/isc-dhcp-server..."
+	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '"${access_point_interface}"'",' /etc/default/isc-dhcp-server
+	sed -i 's,INTERFACESv4="",INTERFACESv4="'"${access_point_interface}"'",' /etc/default/isc-dhcp-server
 }
 
 start_ap_mode() {
 	echo "Starting Wifi: Access Point Mode ..."
-	ifconfig "${wifi_interface}" "${interface_ip}" netmask "${subnet_mask}"
-	ifconfig "${wifi_interface}" up
+	ifconfig "${access_point_interface}" "${interface_ip}" netmask "${subnet_mask}"
+	ifconfig "${access_point_interface}" up
 	if systemctl status pt-dhcp-server &>/dev/null; then
 		restart_and_wait_for_service_state pt-dhcp-server exited
 	else
@@ -104,6 +103,7 @@ start_ap_mode() {
 	fi
 	unmask_service_if_necessary hostapd
 	restart_and_wait_for_service_state hostapd running
+	wpa_cli -i "${wifi_interface}" reconfigure
 	echo "Started AP mode with SSID ${ssid}"
 }
 
@@ -113,6 +113,7 @@ stop_ap_mode_if_active() {
 		systemctl stop hostapd
 		echo "Stopped AP mode"
 	fi
+	wpa_cli -i "${wifi_interface}" reconfigure
 }
 
 start_wifi_managed_mode() {
@@ -148,6 +149,24 @@ print_current_status() {
 	fi
 }
 
+create_virtual_interface() {
+	cat >/etc/udev/rules.d/70-persistent-net.rules <<EOF
+SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${wifi_interface_mac}", KERNEL=="phy0", \
+RUN+="/sbin/iw phy phy0 interface add ${access_point_interface} type __ap", \
+RUN+="/bin/ip link set ${access_point_interface} address ${wifi_interface_mac}
+
+EOF
+
+	udevadm control --reload-rules
+	udevadm trigger
+}
+
+remove_virtual_interface() {
+	rm /etc/udev/rules.d/70-persistent-net.rules || true
+	udevadm control --reload-rules
+	udevadm trigger
+}
+
 if [[ "$EUID" -ne 0 ]]; then
 	echo "Please run as root"
 	exit 1
@@ -165,8 +184,10 @@ fi
 # shellcheck disable=SC1090
 source "${AP_MODE_CONFIG_FILE}"
 
+access_point_interface="${access_point_interface:-ap0}"
 wifi_interface="${wifi_interface:-wlan0}"
-static_ip_prefix="${static_ip_prefix:-10.8.8}"
+wifi_interface_mac="$(cat /sys/class/net/"${wifi_interface}"/address)"
+static_ip_prefix="${static_ip_prefix:-192.168.90}"
 interface_ip="${interface_ip:-${static_ip_prefix}.1}"
 subnet_ip="${subnet_ip:-${static_ip_prefix}.0}"
 subnet_mask="${subnet_mask:-255.255.255.0}"
@@ -190,6 +211,7 @@ fi
 
 if [[ "${command}" == "start" ]]; then
 	stop_ap_mode_if_active
+	create_virtual_interface
 	patch_config_files
 	stop_wifi_managed_mode
 	start_ap_mode
@@ -197,6 +219,7 @@ if [[ "${command}" == "start" ]]; then
 elif [[ "${command}" == "stop" ]]; then
 	stop_ap_mode_if_active
 	clean_config_files
+	remove_virtual_interface
 	start_wifi_managed_mode
 elif [[ "${command}" == "status" ]]; then
 	print_current_status

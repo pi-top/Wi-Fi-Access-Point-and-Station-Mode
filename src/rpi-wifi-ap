@@ -135,8 +135,8 @@ start_wifi_managed_mode() {
 	restart_and_wait_for_service_state wpa_supplicant running
 }
 
-stop_wifi_managed_mode() {
-	echo "Stopping Wifi: Managed Mode ..."
+restart_networking_services() {
+	echo "Restarting dhcpcd & wpa_supplicant services"
 	restart_and_wait_for_service_state dhcpcd running
 	restart_and_wait_for_service_state wpa_supplicant running
 }
@@ -162,11 +162,11 @@ reload_udev_rules() {
 }
 
 create_virtual_interface() {
-	echo "Creating virtual interface ${wifi_interface} to run AP mode"
+	echo "Creating virtual interface ${access_point_interface} to run AP mode"
 	cat >"${UDEV_RULES_FILE}" <<EOF
 SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${wifi_interface_mac}", KERNEL=="phy0", \
 RUN+="/sbin/iw phy phy0 interface add ${access_point_interface} type __ap", \
-RUN+="/bin/ip link set ${access_point_interface} address ${wifi_interface_mac}
+RUN+="/bin/ip link set ${access_point_interface} address ${wifi_interface_mac}"
 
 EOF
 	reload_udev_rules
@@ -229,8 +229,8 @@ if [[ "${command}" == "start" ]]; then
 	stop_ap_mode_if_active
 	create_virtual_interface
 	patch_config_files
-	stop_wifi_managed_mode
 	start_ap_mode
+	restart_networking_services
 	print_current_status
 elif [[ "${command}" == "stop" ]]; then
 	stop_ap_mode_if_active

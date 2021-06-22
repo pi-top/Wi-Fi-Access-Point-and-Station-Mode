@@ -10,6 +10,7 @@ IFS=$'\n\t'
 PACKAGE_CONFIG_DIR="/etc/default/rpi-wifi-ap"
 AP_MODE_CONFIG_FILE="${PACKAGE_CONFIG_DIR}/defaults.conf"
 HOSTAPD_BASE_CONF="${PACKAGE_CONFIG_DIR}/hostapd_base.conf"
+UDEV_RULES_FILE="/etc/udev/rules.d/70-persistent-net.rules"
 
 usage_and_exit() {
 	echo "Application that sets up a Raspberry Pi as a wireless access point."
@@ -149,23 +150,31 @@ print_current_status() {
 	fi
 }
 
+reload_udev_rules() {
+	udevadm control --reload-rules
+	udevadm trigger
+}
+
 create_virtual_interface() {
-	cat >/etc/udev/rules.d/70-persistent-net.rules <<EOF
+	echo "Creating virtual interface ${wifi_interface} to run AP mode"
+	cat >"${UDEV_RULES_FILE}" <<EOF
 SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${wifi_interface_mac}", KERNEL=="phy0", \
 RUN+="/sbin/iw phy phy0 interface add ${access_point_interface} type __ap", \
 RUN+="/bin/ip link set ${access_point_interface} address ${wifi_interface_mac}
 
 EOF
-
-	udevadm control --reload-rules
-	udevadm trigger
+	reload_udev_rules
 }
 
 remove_virtual_interface() {
-	rm /etc/udev/rules.d/70-persistent-net.rules || true
-	udevadm control --reload-rules
-	udevadm trigger
-	iw dev "${access_point_interface}" del
+	if [[ -f "${UDEV_RULES_FILE}" ]]; then
+		echo "Removing virtual interface ${wifi_interface} to run AP mode"
+		rm "${UDEV_RULES_FILE}"
+	fi
+	reload_udev_rules
+	if iw dev | grep -q "${access_point_interface}"; then
+		iw dev "${access_point_interface}" del
+	fi
 }
 
 if [[ "$EUID" -ne 0 ]]; then

@@ -161,6 +161,14 @@ reload_udev_rules() {
 	udevadm trigger
 }
 
+wait_for_interface() {
+	interface="${1}"
+	until ip a l "${interface}" &>/dev/null; do
+		echo "Interface ${interface} not ready - sleeping for 2 seconds..."
+		sleep 2
+	done
+}
+
 create_virtual_interface() {
 	echo "Creating virtual interface ${access_point_interface} to run AP mode"
 	cat >"${UDEV_RULES_FILE}" <<EOF
@@ -170,6 +178,7 @@ RUN+="/bin/ip link set ${access_point_interface} address ${wifi_interface_mac}"
 
 EOF
 	reload_udev_rules
+	wait_for_interface "${access_point_interface}"
 }
 
 remove_virtual_interface() {

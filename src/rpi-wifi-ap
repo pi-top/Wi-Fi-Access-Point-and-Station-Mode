@@ -109,7 +109,7 @@ start_ap_mode() {
 		restart_and_wait_for_service_state isc-dhcp-server running
 	fi
 	unmask_service_if_necessary hostapd
-	restart_and_wait_for_service_state hostapd running
+	restart_and_wait_for_service_state hostapd running || true
 	wpa_cli -i "${wifi_interface}" reconfigure &>/dev/null
 	echo "Started AP mode with SSID ${ssid}"
 }

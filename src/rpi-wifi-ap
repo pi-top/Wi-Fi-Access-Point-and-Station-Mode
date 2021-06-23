@@ -110,7 +110,7 @@ start_ap_mode() {
 	fi
 	unmask_service_if_necessary hostapd
 	restart_and_wait_for_service_state hostapd running
-	wpa_cli -i "${wifi_interface}" reconfigure
+	wpa_cli -i "${wifi_interface}" reconfigure &>/dev/null
 	echo "Started AP mode with SSID ${ssid}"
 }
 
@@ -120,7 +120,7 @@ stop_ap_mode_if_active() {
 		systemctl stop hostapd
 		echo "Stopped AP mode"
 	fi
-	wpa_cli -i "${wifi_interface}" reconfigure
+	wpa_cli -i "${wifi_interface}" reconfigure &>/dev/null
 }
 
 start_wifi_managed_mode() {
@@ -174,7 +174,7 @@ create_virtual_interface() {
 	cat >"${UDEV_RULES_FILE}" <<EOF
 SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${wifi_interface_mac}", KERNEL=="phy0", \
 RUN+="/sbin/iw phy phy0 interface add ${access_point_interface} type __ap", \
-RUN+="/bin/ip link set ${access_point_interface} address ${wifi_interface_mac}"
+RUN+="/bin/ip link set ${access_point_interface} address ${access_point_interface_mac}"
 
 EOF
 	reload_udev_rules
@@ -210,6 +210,7 @@ fi
 source "${AP_MODE_CONFIG_FILE}"
 
 access_point_interface="${access_point_interface:-ap0}"
+access_point_interface_mac="${access_point_interface_mac:-99:88:77:66:55:44}"
 wifi_interface="${wifi_interface:-wlan0}"
 wifi_interface_mac="$(cat /sys/class/net/"${wifi_interface}"/address)"
 static_ip_prefix="${static_ip_prefix:-192.168.90}"

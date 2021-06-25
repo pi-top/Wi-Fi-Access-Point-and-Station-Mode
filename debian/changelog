@@ -1,3 +1,11 @@
+rpi-wifi-ap (0.2.2) buster; urgency=medium
+
+  * Support simultaneous AP and Station Mode
+  * Set passphrase based on Raspberry Pi serial number
+  * Add "status" CLI subcommand to monitor state
+
+ -- pi-top <deb-maintainers@pi-top.com>  Thu, 24 Jun 2021 22:16:29 +0000
+
 rpi-wifi-ap (0.2.1) buster; urgency=medium
 
   * Disable wpa_supplicant for wifi interface using nohook in dhcpcd.conf

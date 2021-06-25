@@ -1,10 +1,8 @@
 rpi-wifi-ap (0.2.2) buster; urgency=medium
 
-  [ Jorge Capona ]
-  * Set passphrase based on Raspberry Pi serial number (#10)
-  * Add "status" CLI subcommand to monitor state (#11)
-  * Update README
-  * Simultaneous AP and Station Mode using virtual interface (#13)
+  * Support simultaneous AP and Station Mode
+  * Set passphrase based on Raspberry Pi serial number
+  * Add "status" CLI subcommand to monitor state
 
  -- pi-top <deb-maintainers@pi-top.com>  Thu, 24 Jun 2021 22:16:29 +0000
 

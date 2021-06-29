@@ -1,0 +1,3 @@
+src/wifi-ap-sta                       /usr/bin
+src/defaults.conf                     /etc/default/wifi-ap-sta
+src/hostapd_base.conf                 /etc/default/wifi-ap-sta

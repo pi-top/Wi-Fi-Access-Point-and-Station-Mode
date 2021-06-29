@@ -8,7 +8,7 @@ IFS=$'\n\t'
 ###############################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-PACKAGE_CONFIG_DIR="/etc/default/rpi-wifi-ap"
+PACKAGE_CONFIG_DIR="/etc/default/wifi-ap-sta"
 if [[ "${SCRIPT_DIR}" != "/usr/bin" ]]; then
 	echo "Using script and configuration files from ${SCRIPT_DIR}"
 	PACKAGE_CONFIG_DIR="${SCRIPT_DIR}"

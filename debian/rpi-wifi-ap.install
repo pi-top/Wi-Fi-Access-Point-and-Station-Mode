@@ -1,3 +1,0 @@
-src/rpi-wifi-ap                       /usr/bin
-src/defaults.conf                     /etc/default/rpi-wifi-ap
-src/hostapd_base.conf                 /etc/default/rpi-wifi-ap

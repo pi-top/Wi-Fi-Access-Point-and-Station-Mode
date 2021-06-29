@@ -1,4 +1,4 @@
-# rpi-wifi-ap
+# wifi-ap-sta
 
 > Easily start and stop using your Raspberry Pi as a wireless access point.
 
@@ -6,7 +6,7 @@
 
 ``` bash
 Usage:
-    rpi-wifi-ap {start,stop,status}
+    wifi-ap-sta {start,stop,status}
 where:
     start  : use Raspberry Pi as wireless access point.
     stop   : stop access point mode and restore previous configuration.
@@ -19,9 +19,9 @@ By default, the SSID is the hostname of the machine that runs the script, and th
 
 ## AP Customization
 
-The access point network configuration can be customized by editing `defaults.conf` (located in `/etc/default/rpi-wifi-ap/defaults.conf`); for example, setting up a different IP address for the network, the range of addresses that the DHCP server can lease, and the network SSID and passphrase.
+The access point network configuration can be customized by editing `defaults.conf` (located in `/etc/default/wifi-ap-sta/defaults.conf`); for example, setting up a different IP address for the network, the range of addresses that the DHCP server can lease, and the network SSID and passphrase.
 
-This file is sourced in the main `rpi-wifi-ap` script, so you can use expresions that will be evaluated later on.
+This file is sourced in the main `wifi-ap-sta` script, so you can use expresions that will be evaluated later on.
 
 ## How It Works
 

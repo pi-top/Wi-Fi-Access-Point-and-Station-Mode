@@ -1,8 +1,6 @@
 # Wi-Fi Access Point and Station Mode
 
-> Easily start and stop using your device as a wireless access point.
->
-> Specifically designed to work with the host device's onboard Wi-Fi interface (wlan0).
+> Easily start and stop using your device as a wireless access point. Specifically designed to work with the host device's onboard Wi-Fi interface (wlan0).
 >
 > Built for Raspberry Pi, but should work with other Debian-based systems running with compatible Wi-Fi hardware.
 

@@ -1,6 +1,6 @@
 # Wi-Fi Access Point and Station Mode
 
-> Easily start and stop using your Raspberry Pi as a wireless access point.
+> Easily start and stop using your device as a wireless access point.
 >
 > Specifically designed to work with the host device's onboard Wi-Fi interface (wlan0).
 >

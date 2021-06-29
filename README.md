@@ -1,6 +1,8 @@
-# wifi-ap-sta
+# Wi-Fi Access Point and Station Mode
 
 > Easily start and stop using your Raspberry Pi as a wireless access point.
+> Specifically designed to work with the host device's onboard Wi-Fi interface (wlan0).
+> Built for Raspberry Pi, but should work with other Debian-based systems running with compatible Wi-Fi hardware.
 
 ## Usage
 

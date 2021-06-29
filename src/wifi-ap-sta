@@ -56,7 +56,8 @@ clean_config_files() {
 	fi
 
 	echo "Restoring /etc/dhcpcd.conf"
-	sed -i -z 's|interface '"${access_point_interface}"'\nstatic ip_address='"${interface_ip}"'/24||p' /etc/dhcpcd.conf
+	# shellcheck disable=2016
+	sed -i -e '1h;2,$H;$!d;g' -e 's|interface '"${access_point_interface}"'\nstatic ip_address='"${interface_ip}"'/24||' /etc/dhcpcd.conf
 
 	echo "Restoring /etc/default/isc-dhcp-server"
 	sed -i 's|INTERFACESv4="ptusb0 '"${access_point_interface}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server

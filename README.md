@@ -21,7 +21,7 @@ where:
 
 ### Settings
 
-By default, the access point's SSID is the hostname of the machine that runs the script and the passphrase is based on the Raspberry Pi's serial number. This allows for repeatable network credentials between sessions, making it easy for clients to connect to their local device even if the OS has been reset. The configuration of the network created by the access point is read from `defaults.conf`.
+By default, the access point's SSID is the hostname of the machine that runs the script. If the machine is a Raspberry Pi, the default passphrase is based in the device's serial number; otherwise it defaults to `12345678`. This allows for repeatable network credentials between sessions, making it easy for clients to connect to their local device even if the OS has been reset. The configuration of the network created by the access point is read from `defaults.conf`.
 
 ### Steps
 

@@ -21,6 +21,8 @@ where:
 
 By default, the SSID is the hostname of the machine that runs the script, and the default password is set based on the Raspberry Pi serial number. The configuration of the network created by the access point is read from `defaults.conf`.
 
+When the Access Point starts, it will verify that the wireless interface is enabled and enable it if necessary. Note that even though the card is enabled, you still need to configure it for it to work on Station mode with `wpa_supplicant`. For example, in Raspberry Pi OS and derivatives you'll need to select your country during onboarding or set it manually using `raspi-config`.
+
 ## AP Customization
 
 The access point network configuration can be customized by editing `defaults.conf` (located in `/etc/default/wifi-ap-sta/defaults.conf`); for example, setting up a different IP address for the network, the range of addresses that the DHCP server can lease, and the network SSID and passphrase.

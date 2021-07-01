@@ -64,6 +64,14 @@ clean_config_files() {
 	sed -i 's|INTERFACESv4="'"${access_point_interface}"'"|INTERFACESv4=""|' /etc/default/isc-dhcp-server
 }
 
+enable_wireless_card_if_necessary() {
+	wifi_state=$(rfkill list wifi -o Soft -n)
+	if [[ "${wifi_state}" == "blocked" ]]; then
+		echo "Wireless card is disabled - enabling ..."
+		rfkill unblock wifi
+	fi
+}
+
 patch_config_files() {
 	hostapd_conf="/etc/hostapd/hostapd.conf"
 	if [[ -f "${hostapd_conf}" ]]; then
@@ -237,6 +245,7 @@ if [[ -z "${wpa_passphrase}" ]]; then
 fi
 
 if [[ "${command}" == "start" ]]; then
+	enable_wireless_card_if_necessary
 	stop_ap_mode_if_active
 	create_virtual_interface
 	patch_config_files

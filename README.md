@@ -19,7 +19,30 @@ where:
 
 ## Default Behaviour
 
-By default, the SSID is the hostname of the machine that runs the script, and the default password is set based on the Raspberry Pi serial number. The configuration of the network created by the access point is read from `defaults.conf`.
+### Settings
+
+By default, the access point's SSID is the hostname of the machine that runs the script. If the machine is a Raspberry Pi, the default passphrase is based in the device's serial number; otherwise it defaults to `12345678`. This allows for repeatable network credentials between sessions, making it easy for clients to connect to their local device even if the OS has been reset. The configuration of the network created by the access point is read from `defaults.conf`.
+
+### Steps
+
+#### Start
+
+* Enable wireless interface via `rfkill` if necessary
+* Create a virtual network interface to be used by the access point
+* Patch system network configuration files
+* Start access point service through `hostapd`
+* Restart networking services
+
+#### Stop
+
+* Stop `hostapd` access point service
+* Restore patched networking configuration files
+* Remove virtual network interface
+* Restart networking services
+
+## Station Mode: Things To Note
+
+Even though the wireless interface is enabled, you may still need to configure it for it to work with `wpa_supplicant`. For example, in Raspberry Pi OS and derivatives you'll need to select your country during onboarding or set it manually using raspi-config.
 
 ## AP Customization
 

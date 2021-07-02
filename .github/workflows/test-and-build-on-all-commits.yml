@@ -9,18 +9,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2.2.0
 
-      - name: Run tests
-        run: |
-          docker run \
-            --rm \
-            --volume ${{ github.workspace }}:/src \
-            --env RUN_PYTHON_TESTS=1 \
-            --env PYTHON_TESTS_DIR=src/server/tests \
-            --env PYTHON_TARGET_DIR=src/server \
-            --env PYTHON_COVERAGE_DIR=backend \
-            --env RUN_WEB_TESTS=1 \
-            --env WEB_TESTS_DIR=src/frontend \
-            pitop/test-run
+#      - name: Run tests
+#        run: |
+#          docker run \
+#            --rm \
+#            --volume ${{ github.workspace }}:/src \
+#            --env RUN_PYTHON_TESTS=1 \
+#            --env PYTHON_TESTS_DIR=src/server/tests \
+#            --env PYTHON_TARGET_DIR=src/server \
+#            --env PYTHON_COVERAGE_DIR=backend \
+#            --env RUN_WEB_TESTS=1 \
+#            --env WEB_TESTS_DIR=src/frontend \
+#            pitop/test-run
 
 #      - name: Upload test coverage report to Codecov
 #        uses: codecov/codecov-action@v1

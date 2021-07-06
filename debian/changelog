@@ -1,3 +1,11 @@
+wifi-ap-sta (0.2.3) buster; urgency=medium
+
+  * Rename package to wifi-ap-sta (#16)
+  * Fix configuration files cleanup process
+  * Enable wireless card if necessary (#17)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Mon, 05 Jul 2021 10:00:49 +0000
+
 wifi-ap-sta (0.2.2) buster; urgency=medium
 
   * Support simultaneous AP and Station Mode

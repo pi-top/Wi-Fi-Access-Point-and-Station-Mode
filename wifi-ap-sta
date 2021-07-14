@@ -1,0 +1,294 @@
+#!/bin/bash
+###############################################################
+#                Unofficial 'Bash strict mode'                #
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/  #
+###############################################################
+set -euo pipefail
+IFS=$'\n\t'
+###############################################################
+
+AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
+
+initialise_ap_values() {
+	AP_SSID="${AP_SSID:-$(hostname)}"
+	AP_IFACE="${AP_IFACE:-ap0}"
+	AP_MAC="${AP_MAC:-99:88:77:66:55:44}"
+	WIFI_IFACE="${WIFI_IFACE:-wlan0}"
+	WIFI_IFACE_MAC="$(cat /sys/class/net/"${WIFI_IFACE}"/address)"
+	STATIC_IP_PREFIX="${STATIC_IP_PREFIX:-192.168.90}"
+	IFACE_IP="${IFACE_IP:-${STATIC_IP_PREFIX}.1}"
+	SUBNET_IP="${SUBNET_IP:-${STATIC_IP_PREFIX}.0}"
+	SUBNET_MASK="${SUBNET_MASK:-255.255.255.0}"
+	DHCP_RANGE_START="${DHCP_RANGE_START:-${STATIC_IP_PREFIX}.10}"
+	DHCP_RANGE_END="${DHCP_RANGE_END:-${STATIC_IP_PREFIX}.50}"
+
+	# Default required hostapd configuration
+	HOSTAPD_hw_mode="${HOSTAPD_hw_mode:-g}"
+	HOSTAPD_channel="${HOSTAPD_channel:-6}"
+	HOSTAPD_macaddr_acl="${HOSTAPD_macaddr_acl:-0}"
+	HOSTAPD_auth_algs="${HOSTAPD_auth_algs:-1}"
+	HOSTAPD_ignore_broadcast_ssid="${HOSTAPD_ignore_broadcast_ssid:-0}"
+	HOSTAPD_wpa="${HOSTAPD_wpa:-2}"
+	HOSTAPD_wpa_pairwise="${HOSTAPD_wpa_pairwise:-TKIP}"
+	HOSTAPD_rsn_pairwise="${HOSTAPD_rsn_pairwise:-CCMP}"
+}
+
+usage_and_exit() {
+	echo "Application that sets up a Raspberry Pi as a wireless access point."
+	echo "Customize the access point settings by editing ${AP_MODE_CONFIG_FILE}"
+	echo ""
+	echo -e "Usage:\\n\\t${0} {start,stop,status}"
+	echo "where:"
+	echo -e "\\tstart\\t: use Raspberry Pi as wireless access point."
+	echo -e "\\tstop\\t: stop access point mode and restore previous configuration."
+	echo -e "\\tstatus\\t: display access point state and information."
+	echo ""
+	exit 1
+}
+
+if [[ "$EUID" -ne 0 ]]; then
+	echo "Please run as root"
+	exit 1
+fi
+
+command=${1:-}
+valid_commands=("start" "stop" "status")
+if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
+	# shellcheck disable=SC2145
+	echo "Invalid argument: accepted values are: ${valid_commands[@]}."
+	echo ""
+	usage_and_exit
+fi
+
+# shellcheck disable=SC1090
+source "${AP_MODE_CONFIG_FILE}"
+
+initialise_ap_values
+
+if [[ -z "${AP_PASSWORD:-}" ]]; then
+	echo "No Wi-Fi password was specified - attempting to use Raspberry Pi serial number."
+	rpi_serial=$(grep "Serial" /proc/cpuinfo | awk '{print $3}')
+
+	if [[ -n "${rpi_serial}" ]]; then
+		processed_serial="$(echo "${rpi_serial: -8}" | tr '[:lower:]' '[:upper:]')"
+		echo "Serial number found - using '${processed_serial}' for Wi-Fi password"
+		AP_PASSWORD="${processed_serial}"
+	else
+		fallback_password="12345678"
+		echo "Serial number not found - using '${fallback_password}' for Wi-Fi password"
+		AP_PASSWORD="${fallback_password}"
+	fi
+
+fi
+
+main() {
+	if [[ "${command}" == "start" ]]; then
+		do_start
+	elif [[ "${command}" == "stop" ]]; then
+		do_stop
+	else
+		:
+	fi
+	print_current_status
+}
+
+do_start() {
+	_enable_wireless_card_if_necessary
+	_stop_ap_mode_if_active
+	_create_virtual_interface
+	_wait_for_virtual_interface
+	_patch_config_files
+	_start_ap_mode
+	_restart_networking_services
+}
+
+do_stop() {
+	_stop_ap_mode_if_active
+	_clean_config_files
+	_remove_virtual_interface
+	_start_wifi_managed_mode
+}
+
+print_current_status() {
+	state=$(systemctl show -p ActiveState --value hostapd)
+	echo "State: ${state}"
+	if [[ "${state}" == "active" ]]; then
+		echo "Access Point Network SSID: ${AP_SSID}"
+		echo "Access Point Wi-Fi Password: ${AP_PASSWORD}"
+		echo "Access Point IP Address: ${IFACE_IP}"
+	fi
+}
+
+##########################
+# CONFIG FILE MANAGEMENT #
+##########################
+_clean_config_files() {
+	hostapd_conf="/etc/hostapd/hostapd.conf"
+	if [[ -f "${hostapd_conf}.orig" ]]; then
+		echo "Restoring previous hostapd configuration from ${hostapd_conf}.orig"
+		mv "${hostapd_conf}.orig" "${hostapd_conf}"
+	fi
+
+	echo "Restoring /etc/dhcpcd.conf"
+	# shellcheck disable=2016
+	sed -i -e '1h;2,$H;$!d;g' -e 's|interface '"${AP_IFACE}"'\nstatic ip_address='"${IFACE_IP}"'/24||' /etc/dhcpcd.conf
+
+	echo "Restoring /etc/default/isc-dhcp-server"
+	sed -i 's|INTERFACESv4="ptusb0 '"${AP_IFACE}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server
+	sed -i 's|INTERFACESv4="'"${AP_IFACE}"'"|INTERFACESv4=""|' /etc/default/isc-dhcp-server
+}
+
+_patch_config_files() {
+	hostapd_conf="/etc/hostapd/hostapd.conf"
+	if [[ -f "${hostapd_conf}" ]]; then
+		echo "Backing up existing ${hostapd_conf}..."
+		mv "${hostapd_conf}" "${hostapd_conf}.orig"
+	fi
+
+	echo "Configuring hostapd ..."
+	# For each HOSTAPD_ prefixed environment variable, write to file
+	for var in "${!HOSTAPD_@}"; do
+		echo "${var/HOSTAPD_/}=${!var}" >>"${hostapd_conf}"
+	done
+
+	echo -e "interface=${AP_IFACE}\nssid=${AP_SSID}\nwpa_passphrase=${AP_PASSWORD}" >>"${hostapd_conf}"
+
+	dhcpcd_conf="/etc/dhcpcd.conf"
+	if ! grep -q "interface ${AP_IFACE}\nstatic ip_address=${IFACE_IP}/24" "${dhcpcd_conf}"; then
+		echo "Setting static IP configuration in ${dhcpcd_conf} ..."
+		echo -e "interface ${AP_IFACE}\\nstatic ip_address=${IFACE_IP}/24" >>"${dhcpcd_conf}"
+	fi
+
+	dhcpd_conf="/etc/dhcp/dhcpd.conf"
+	if ! grep -q "subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {" "${dhcpd_conf}"; then
+		echo "Setting subnet configuration in ${dhcpd_conf} ..."
+		echo "subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {
+    range ${STATIC_IP_PREFIX}.${DHCP_RANGE_START} ${STATIC_IP_PREFIX}.${DHCP_RANGE_END};
+    option subnet-mask ${SUBNET_MASK};
+    option routers ${IFACE_IP};
+    option domain-name-servers 8.8.8.8, 8.8.4.4;
+    option time-offset 0;
+    option broadcast-address ${STATIC_IP_PREFIX}.255;
+  }" >>"${dhcpd_conf}"
+	fi
+
+	echo "Configuring ${AP_IFACE} in /etc/default/isc-dhcp-server..."
+	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '"${AP_IFACE}"'",' /etc/default/isc-dhcp-server
+	sed -i 's,INTERFACESv4="",INTERFACESv4="'"${AP_IFACE}"'",' /etc/default/isc-dhcp-server
+}
+
+############################
+# STATE REFRESH MANAGEMENT #
+############################
+_restart_and_wait_for_service_state() {
+	service_name="${1}"
+	service_state="${2:-running}"
+	echo "Restarting service ${service_name}..."
+	systemctl restart "${service_name}"
+	while [ "$(systemctl show -p ActiveState --value "${service_name}")" != "active" ] || [ "$(systemctl show -p SubState --value "${service_name}")" != "${service_state}" ]; do
+		echo "Service ${service_name} isn't ready - sleeping for 2 seconds..."
+		sleep 2
+	done
+}
+
+_restart_networking_services() {
+	echo "Restarting dhcpcd & wpa_supplicant services"
+	_restart_and_wait_for_service_state dhcpcd running
+	_restart_and_wait_for_service_state wpa_supplicant running
+}
+
+#################################
+# PHYSICAL INTERFACE MANAGEMENT #
+#################################
+_enable_wireless_card_if_necessary() {
+	wifi_state=$(rfkill list wifi -o Soft -n)
+	if [[ "${wifi_state}" == "blocked" ]]; then
+		echo "Wireless card is disabled - enabling ..."
+		rfkill unblock wifi
+	fi
+}
+
+################################
+# VIRTUAL INTERFACE MANAGEMENT #
+################################
+UDEV_RULES_FILE="/etc/udev/rules.d/70-persistent-net.rules"
+
+_reload_udev_rules() {
+	udevadm control --reload-rules
+	udevadm trigger
+}
+
+_create_virtual_interface() {
+	echo "Creating virtual interface ${AP_IFACE} to run AP mode"
+	cat >"${UDEV_RULES_FILE}" <<EOF
+SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${WIFI_IFACE_MAC}", KERNEL=="phy0", \
+RUN+="/sbin/iw phy phy0 interface add ${AP_IFACE} type __ap", \
+RUN+="/bin/ip link set ${AP_IFACE} address ${AP_MAC}"
+EOF
+	_reload_udev_rules
+}
+
+_wait_for_virtual_interface() {
+	until ip a l "${AP_IFACE}" &>/dev/null; do
+		echo "Interface '${AP_IFACE}' is not ready - sleeping for 2 seconds..."
+		sleep 2
+	done
+}
+
+_remove_virtual_interface() {
+	if [[ -f "${UDEV_RULES_FILE}" ]]; then
+		echo "Removing virtual interface ${WIFI_IFACE} to run AP mode"
+		rm "${UDEV_RULES_FILE}"
+	fi
+	_reload_udev_rules
+	if iw dev | grep -q "${AP_IFACE}"; then
+		iw dev "${AP_IFACE}" del
+	fi
+}
+
+########################
+# WIFI MODE MANAGEMENT #
+########################
+_unmask_service_if_necessary() {
+	if [ "$(systemctl show -p LoadState --value "${1}")" == "masked" ]; then
+		systemctl unmask "${1}"
+	fi
+}
+
+_start_ap_mode() {
+	echo "Starting Wifi: Access Point Mode ..."
+	ifconfig "${AP_IFACE}" "${IFACE_IP}" netmask "${SUBNET_MASK}"
+	ifconfig "${AP_IFACE}" up
+	if systemctl status pt-dhcp-server &>/dev/null; then
+		_restart_and_wait_for_service_state pt-dhcp-server exited
+	else
+		_restart_and_wait_for_service_state isc-dhcp-server running
+	fi
+	_unmask_service_if_necessary hostapd
+	_restart_and_wait_for_service_state hostapd running || true
+	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
+	echo "Started AP mode with SSID ${AP_SSID}"
+}
+
+_stop_ap_mode_if_active() {
+	if systemctl status hostapd &>/dev/null; then
+		echo "Stopping Wifi: Access Point Mode ..."
+		systemctl stop hostapd
+		echo "Stopped AP mode"
+	fi
+	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
+}
+
+_start_wifi_managed_mode() {
+	echo "Starting Wifi: Managed Mode ..."
+	dhclient -r "${WIFI_IFACE}"
+	if systemctl status pt-dhcp-server &>/dev/null; then
+		_restart_and_wait_for_service_state pt-dhcp-server exited
+	else
+		systemctl stop isc-dhcp-server
+	fi
+	_restart_and_wait_for_service_state dhcpcd running
+	_restart_and_wait_for_service_state wpa_supplicant running
+}
+
+main

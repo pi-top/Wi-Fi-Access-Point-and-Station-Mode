@@ -1,5 +1,5 @@
 [Unit]
-Description=Raspberry Pi Wireless Access Point
+Description=Wi-Fi Access Point and Station Mode
 Documentation=https://knowledgebase.pi-top.com/knowledge
 
 [Service]

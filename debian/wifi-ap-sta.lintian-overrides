@@ -1,1 +1,1 @@
-wifi-ap-sta: no-manual-page usr/bin/wifi-ap-sta
+wifi-ap-sta: package-supports-alternative-init-but-no-init.d-script

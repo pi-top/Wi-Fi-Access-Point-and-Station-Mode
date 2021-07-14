@@ -113,9 +113,9 @@ print_current_status() {
 	state=$(systemctl show -p ActiveState --value hostapd)
 	echo "State: ${state}"
 	if [[ "${state}" == "active" ]]; then
-		echo "Access Point Network SSID: ${AP_SSID}"
-		echo "Access Point Wi-Fi Password: ${AP_PASSWORD}"
-		echo "Access Point IP Address: ${IFACE_IP}"
+		echo -e "Access Point Network SSID:\t${AP_SSID}"
+		echo -e "Access Point Wi-Fi Password:\t${AP_PASSWORD}"
+		echo -e "Access Point IP Address:\t${IFACE_IP}"
 	fi
 }
 

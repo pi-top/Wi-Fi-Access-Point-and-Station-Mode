@@ -19,6 +19,45 @@ where:
 
 ## Default Behaviour
 
+### Default config
+
+Check out ``defaults.conf``
+```
+SSID=$(hostname)
+rpi_serial=$(grep "serial" /proc/cpuinfo | awk '{print $3}')
+rpi_serial="${rpi_serial:-12345678}"
+WPA_PASSPHRASE=$(echo "${rpi_serial: -8}" | tr '[:lower:]' '[:upper:]')
+WIFI_INTERFACE=WLAN0
+ACCESS_POINT_INTERFACE=WLAN_AP0
+ACCESS_POINT_INTERFACE_MAC=99:88:77:66:55:44
+STATIC_IP_PREFIX=192.168.90
+SUBNET_MASK=255.255.255.0
+INTERFACE_IP_SUFFIX=1
+SUBNET_IP_SUFFIX=0
+DHCP_START=10
+DHCP_END=50
+HOSTAPD_hw_mode=g
+HOSTAPD_channel=6
+HOSTAPD_macaddr_acl=0
+HOSTAPD_auth_algs=1
+HOSTAPD_ignore_broadcast_ssid=0
+HOSTAPD_wpa=2
+HOSTAPD_wpa_pairwise=TKIP
+HOSTAPD_rsn_pairwise=CCMP
+```
+
+Produces:
+```
+hw_mode=g
+channel=6
+macaddr_acl=0
+auth_algs=1
+ignore_broadcast_ssid=0
+wpa=2
+wpa_pairwise=TKIP
+rsn_pairwise=CCMP
+```
+
 ### Settings
 
 By default, the access point's SSID is the hostname of the machine that runs the script. If the machine is a Raspberry Pi, the default passphrase is based in the device's serial number; otherwise it defaults to `12345678`. This allows for repeatable network credentials between sessions, making it easy for clients to connect to their local device even if the OS has been reset. The configuration of the network created by the access point is read from `defaults.conf`.

@@ -7,6 +7,8 @@ set -euo pipefail
 IFS=$'\n\t'
 ###############################################################
 
+AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
+
 usage_and_exit() {
 	echo "Application that sets up a Raspberry Pi as a wireless access point."
 	echo "Customize the access point settings by editing ${AP_MODE_CONFIG_FILE}"
@@ -34,35 +36,26 @@ if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
 	usage_and_exit
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-PACKAGE_CONFIG_DIR="/etc/default/wifi-ap-sta"
-if [[ "${SCRIPT_DIR}" != "/usr/bin" ]]; then
-	echo "Using script and configuration files from ${SCRIPT_DIR}"
-	PACKAGE_CONFIG_DIR="${SCRIPT_DIR}"
-fi
-
-AP_MODE_CONFIG_FILE="${PACKAGE_CONFIG_DIR}/defaults.conf"
-HOSTAPD_BASE_CONF="${PACKAGE_CONFIG_DIR}/hostapd_base.conf"
-UDEV_RULES_FILE="/etc/udev/rules.d/70-persistent-net.rules"
-
 # shellcheck disable=SC1090
 source "${AP_MODE_CONFIG_FILE}"
 
-ssid="${ssid:-${2}}"
-wpa_passphrase="${wpa_passphrase:-${3}}"
+if [[ -z "${AP_PASSWORD}" ]]; then
+	echo "No Wi-Fi password was specified - attempting to use Raspberry Pi serial number."
+	rpi_serial=$(grep "Serial" /proc/cpuinfo | awk '{print $3}')
 
-if [[ -z "${ssid}" ]]; then
-	echo "No SSID provided."
-	echo ""
-	usage_and_exit
+	if [[ -n "${rpi_serial}" ]]; then
+		processed_serial="$(echo "${rpi_serial: -8}" | tr '[:lower:]' '[:upper:]')"
+		echo "Serial number found - using '${processed_serial}' for Wi-Fi password"
+		AP_PASSWORD="${processed_serial}"
+	else
+		fallback_password="12345678"
+		echo "Serial number not found - using '${fallback_password}' for Wi-Fi password"
+		AP_PASSWORD="${fallback_password}"
+	fi
+
 fi
 
-if [[ -z "${wpa_passphrase}" ]]; then
-	echo "No passphrase provided."
-	echo ""
-	usage_and_exit
-fi
-
+AP_SSID="${AP_SSID:-$(hostname)}"
 AP_IFACE="${AP_IFACE:-ap0}"
 AP_MAC="${AP_MAC:-99:88:77:66:55:44}"
 WIFI_IFACE="${WIFI_IFACE:-wlan0}"
@@ -73,6 +66,16 @@ SUBNET_IP="${SUBNET_IP:-${STATIC_IP_PREFIX}.0}"
 SUBNET_MASK="${SUBNET_MASK:-255.255.255.0}"
 DHCP_RANGE_START="${DHCP_RANGE_START:-${STATIC_IP_PREFIX}.10}"
 DHCP_RANGE_END="${DHCP_RANGE_END:-${STATIC_IP_PREFIX}.50}"
+
+# Default required hostapd configuration
+HOSTAPD_hw_mode="${HOSTAPD_hw_mode:-g}"
+HOSTAPD_channel="${HOSTAPD_channel:-6}"
+HOSTAPD_macaddr_acl="${HOSTAPD_macaddr_acl:-0}"
+HOSTAPD_auth_algs="${HOSTAPD_auth_algs:-1}"
+HOSTAPD_ignore_broadcast_ssid="${HOSTAPD_ignore_broadcast_ssid:-0}"
+HOSTAPD_wpa="${HOSTAPD_wpa:-2}"
+HOSTAPD_wpa_pairwise="${HOSTAPD_wpa_pairwise:-TKIP}"
+HOSTAPD_rsn_pairwise="${HOSTAPD_rsn_pairwise:-CCMP}"
 
 main() {
 	if [[ "${command}" == "start" ]]; then
@@ -106,9 +109,9 @@ print_current_status() {
 	state=$(systemctl show -p ActiveState --value hostapd)
 	echo "State: ${state}"
 	if [[ "${state}" == "active" ]]; then
-		echo "SSID: ${ssid}"
-		echo "Passphrase: ${wpa_passphrase}"
-		echo "IP Address: ${IFACE_IP}"
+		echo "Access Point Network SSID: ${AP_SSID}"
+		echo "Access Point Wi-Fi Password: ${AP_PASSWORD}"
+		echo "Access Point IP Address: ${IFACE_IP}"
 	fi
 }
 
@@ -135,20 +138,26 @@ _patch_config_files() {
 	hostapd_conf="/etc/hostapd/hostapd.conf"
 	if [[ -f "${hostapd_conf}" ]]; then
 		echo "Backing up existing ${hostapd_conf}..."
-		cp "${hostapd_conf}" "${hostapd_conf}.orig"
+		mv "${hostapd_conf}" "${hostapd_conf}.orig"
 	fi
 
 	echo "Configuring hostapd ..."
-	cp "${HOSTAPD_BASE_CONF}" /etc/hostapd/hostapd.conf
-	echo -e "interface=${AP_IFACE}\nssid=${ssid}\nwpa_passphrase=${wpa_passphrase}" >>/etc/hostapd/hostapd.conf
+	# For each HOSTAPD_ prefixed environment variable, write to file
+	for var in "${!HOSTAPD_@}"; do
+		echo "${var/HOSTAPD_/}=${!var}" >>"${hostapd_conf}"
+	done
 
-	if ! grep -q "interface ${AP_IFACE}\nstatic ip_address=${IFACE_IP}/24" /etc/dhcpcd.conf; then
-		echo "Setting static IP configuration in /etc/dhcpcd.conf ..."
-		echo -e "interface ${AP_IFACE}\\nstatic ip_address=${IFACE_IP}/24" >>/etc/dhcpcd.conf
+	echo -e "interface=${AP_IFACE}\nssid=${AP_SSID}\nwpa_passphrase=${AP_PASSWORD}" >>"${hostapd_conf}"
+
+	dhcpcd_conf="/etc/dhcpcd.conf"
+	if ! grep -q "interface ${AP_IFACE}\nstatic ip_address=${IFACE_IP}/24" "${dhcpcd_conf}"; then
+		echo "Setting static IP configuration in ${dhcpcd_conf} ..."
+		echo -e "interface ${AP_IFACE}\\nstatic ip_address=${IFACE_IP}/24" >>"${dhcpcd_conf}"
 	fi
 
-	if ! grep -q "subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {" /etc/dhcp/dhcpd.conf; then
-		echo "Setting subnet configuration in /etc/dhcp/dhcpd.conf ..."
+	dhcpd_conf="/etc/dhcp/dhcpd.conf"
+	if ! grep -q "subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {" "${dhcpd_conf}"; then
+		echo "Setting subnet configuration in ${dhcpd_conf} ..."
 		echo "subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {
     range ${STATIC_IP_PREFIX}.${DHCP_RANGE_START} ${STATIC_IP_PREFIX}.${DHCP_RANGE_END};
     option subnet-mask ${SUBNET_MASK};
@@ -156,7 +165,7 @@ _patch_config_files() {
     option domain-name-servers 8.8.8.8, 8.8.4.4;
     option time-offset 0;
     option broadcast-address ${STATIC_IP_PREFIX}.255;
-  }" >>/etc/dhcp/dhcpd.conf
+  }" >>"${dhcpd_conf}"
 	fi
 
 	echo "Configuring ${AP_IFACE} in /etc/default/isc-dhcp-server..."
@@ -198,6 +207,8 @@ _enable_wireless_card_if_necessary() {
 ################################
 # VIRTUAL INTERFACE MANAGEMENT #
 ################################
+UDEV_RULES_FILE="/etc/udev/rules.d/70-persistent-net.rules"
+
 _reload_udev_rules() {
 	udevadm control --reload-rules
 	udevadm trigger
@@ -252,7 +263,7 @@ _start_ap_mode() {
 	_unmask_service_if_necessary hostapd
 	_restart_and_wait_for_service_state hostapd running || true
 	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
-	echo "Started AP mode with SSID ${ssid}"
+	echo "Started AP mode with SSID ${AP_SSID}"
 }
 
 _stop_ap_mode_if_active() {

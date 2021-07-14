@@ -1,4 +1,4 @@
-Source: wifi-ap-sta
+Source: wi-fi-access-point-and-station-mode
 Section: utils
 Priority: optional
 Maintainer: pi-top <deb-maintainers@pi-top.com>
@@ -19,8 +19,8 @@ Depends:
  systemd,
  udev,
  wpasupplicant,
-Description: Raspberry Pi Wireless Access Point
- Easily start and stop using your Raspberry Pi as a wireless access point.
+Description: Wi-Fi Access Point and Station Mode
+ Easily start and stop AP-STA mode on compatible devices.
  .
  This application is specifically developed to work on Raspberry Pi OS and
  derivatives, with some additional functionality to work with pi-topOS's DHCP

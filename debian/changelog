@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.3.0) buster; urgency=medium
+
+  * Now uses /etc/default/wifi-ap-sta config file for full configuration
+
+ -- pi-top <deb-maintainers@pi-top.com>  Wed, 14 Jul 2021 17:59:14 +0000
+
 wifi-ap-sta (0.2.3) buster; urgency=medium
 
   * Rename package to wifi-ap-sta (#16)

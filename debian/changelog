@@ -1,3 +1,15 @@
+wi-fi-access-point-and-station-mode (0.3.0-2) buster; urgency=medium
+
+  [ Jorge Capona ]
+  * Add missing github workflows
+
+  [ Mike Roberts ]
+  * Typo fix
+  * Only use one configuration file (#24)
+  * Use tabs for output
+
+ -- pi-top <deb-maintainers@pi-top.com>  Wed, 14 Jul 2021 18:33:00 +0000
+
 wi-fi-access-point-and-station-mode (0.3.0-1) buster; urgency=medium
 
   * Now uses /etc/default/wifi-ap-sta config file for full configuration

@@ -7,17 +7,6 @@ set -euo pipefail
 IFS=$'\n\t'
 ###############################################################
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-PACKAGE_CONFIG_DIR="/etc/default/wifi-ap-sta"
-if [[ "${SCRIPT_DIR}" != "/usr/bin" ]]; then
-	echo "Using script and configuration files from ${SCRIPT_DIR}"
-	PACKAGE_CONFIG_DIR="${SCRIPT_DIR}"
-fi
-
-AP_MODE_CONFIG_FILE="${PACKAGE_CONFIG_DIR}/defaults.conf"
-HOSTAPD_BASE_CONF="${PACKAGE_CONFIG_DIR}/hostapd_base.conf"
-UDEV_RULES_FILE="/etc/udev/rules.d/70-persistent-net.rules"
-
 usage_and_exit() {
 	echo "Application that sets up a Raspberry Pi as a wireless access point."
 	echo "Customize the access point settings by editing ${AP_MODE_CONFIG_FILE}"
@@ -31,24 +20,102 @@ usage_and_exit() {
 	exit 1
 }
 
-restart_and_wait_for_service_state() {
-	service_name="${1}"
-	service_state="${2:-running}"
-	echo "Restarting service ${service_name}..."
-	systemctl restart "${service_name}"
-	while [ "$(systemctl show -p ActiveState --value "${service_name}")" != "active" ] || [ "$(systemctl show -p SubState --value "${service_name}")" != "${service_state}" ]; do
-		echo "Service ${service_name} isn't ready - sleeping for 2 seconds..."
-		sleep 2
-	done
+if [[ "$EUID" -ne 0 ]]; then
+	echo "Please run as root"
+	exit 1
+fi
+
+command=${1:-}
+valid_commands=("start" "stop" "status")
+if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
+	# shellcheck disable=SC2145
+	echo "Invalid argument: accepted values are: ${valid_commands[@]}."
+	echo ""
+	usage_and_exit
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+PACKAGE_CONFIG_DIR="/etc/default/wifi-ap-sta"
+if [[ "${SCRIPT_DIR}" != "/usr/bin" ]]; then
+	echo "Using script and configuration files from ${SCRIPT_DIR}"
+	PACKAGE_CONFIG_DIR="${SCRIPT_DIR}"
+fi
+
+AP_MODE_CONFIG_FILE="${PACKAGE_CONFIG_DIR}/defaults.conf"
+HOSTAPD_BASE_CONF="${PACKAGE_CONFIG_DIR}/hostapd_base.conf"
+UDEV_RULES_FILE="/etc/udev/rules.d/70-persistent-net.rules"
+
+# shellcheck disable=SC1090
+source "${AP_MODE_CONFIG_FILE}"
+
+ssid="${ssid:-${2}}"
+wpa_passphrase="${wpa_passphrase:-${3}}"
+
+if [[ -z "${ssid}" ]]; then
+	echo "No SSID provided."
+	echo ""
+	usage_and_exit
+fi
+
+if [[ -z "${wpa_passphrase}" ]]; then
+	echo "No passphrase provided."
+	echo ""
+	usage_and_exit
+fi
+
+access_point_interface="${access_point_interface:-ap0}"
+access_point_interface_mac="${access_point_interface_mac:-99:88:77:66:55:44}"
+wifi_interface="${wifi_interface:-wlan0}"
+wifi_interface_mac="$(cat /sys/class/net/"${wifi_interface}"/address)"
+static_ip_prefix="${static_ip_prefix:-192.168.90}"
+interface_ip="${interface_ip:-${static_ip_prefix}.1}"
+subnet_ip="${subnet_ip:-${static_ip_prefix}.0}"
+subnet_mask="${subnet_mask:-255.255.255.0}"
+dhcp_start="${dhcp_start:-${static_ip_prefix}.10}"
+dhcp_end="${dhcp_end:-${static_ip_prefix}.50}"
+
+main() {
+	if [[ "${command}" == "start" ]]; then
+		do_start
+	elif [[ "${command}" == "stop" ]]; then
+		do_stop
+	else
+		:
+	fi
+	print_current_status
 }
 
-unmask_service_if_necessary() {
-	if [ "$(systemctl show -p LoadState --value "${1}")" == "masked" ]; then
-		systemctl unmask "${1}"
+do_start() {
+	_enable_wireless_card_if_necessary
+	_stop_ap_mode_if_active
+	_create_virtual_interface
+	_wait_for_virtual_interface
+	_patch_config_files
+	_start_ap_mode
+	_restart_networking_services
+}
+
+do_stop() {
+	_stop_ap_mode_if_active
+	_clean_config_files
+	_remove_virtual_interface
+	_start_wifi_managed_mode
+}
+
+print_current_status() {
+	state=$(systemctl show -p ActiveState --value hostapd)
+	echo "State: ${state}"
+	if [[ "${state}" == "active" ]]; then
+		echo "SSID: ${ssid}"
+		echo "Passphrase: ${wpa_passphrase}"
+		echo "IP Address: ${interface_ip}"
 	fi
 }
 
-clean_config_files() {
+##########################
+# CONFIG FILE MANAGEMENT #
+##########################
+_clean_config_files() {
 	hostapd_conf="/etc/hostapd/hostapd.conf"
 	if [[ -f "${hostapd_conf}.orig" ]]; then
 		echo "Restoring previous hostapd configuration from ${hostapd_conf}.orig"
@@ -64,15 +131,7 @@ clean_config_files() {
 	sed -i 's|INTERFACESv4="'"${access_point_interface}"'"|INTERFACESv4=""|' /etc/default/isc-dhcp-server
 }
 
-enable_wireless_card_if_necessary() {
-	wifi_state=$(rfkill list wifi -o Soft -n)
-	if [[ "${wifi_state}" == "blocked" ]]; then
-		echo "Wireless card is disabled - enabling ..."
-		rfkill unblock wifi
-	fi
-}
-
-patch_config_files() {
+_patch_config_files() {
 	hostapd_conf="/etc/hostapd/hostapd.conf"
 	if [[ -f "${hostapd_conf}" ]]; then
 		echo "Backing up existing ${hostapd_conf}..."
@@ -81,12 +140,9 @@ patch_config_files() {
 
 	echo "Configuring hostapd ..."
 	cp "${HOSTAPD_BASE_CONF}" /etc/hostapd/hostapd.conf
-	echo "interface=${access_point_interface}
-ssid=${ssid}
-wpa_passphrase=${wpa_passphrase}" >>/etc/hostapd/hostapd.conf
+	echo -e "interface=${access_point_interface}\nssid=${ssid}\nwpa_passphrase=${wpa_passphrase}" >>/etc/hostapd/hostapd.conf
 
-	if ! grep -q "interface ${access_point_interface}
-static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
+	if ! grep -q "interface ${access_point_interface}\nstatic ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
 		echo "Setting static IP configuration in /etc/dhcpcd.conf ..."
 		echo -e "interface ${access_point_interface}\\nstatic ip_address=${interface_ip}/24" >>/etc/dhcpcd.conf
 	fi
@@ -108,22 +164,98 @@ static ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
 	sed -i 's,INTERFACESv4="",INTERFACESv4="'"${access_point_interface}"'",' /etc/default/isc-dhcp-server
 }
 
-start_ap_mode() {
+############################
+# STATE REFRESH MANAGEMENT #
+############################
+_restart_and_wait_for_service_state() {
+	service_name="${1}"
+	service_state="${2:-running}"
+	echo "Restarting service ${service_name}..."
+	systemctl restart "${service_name}"
+	while [ "$(systemctl show -p ActiveState --value "${service_name}")" != "active" ] || [ "$(systemctl show -p SubState --value "${service_name}")" != "${service_state}" ]; do
+		echo "Service ${service_name} isn't ready - sleeping for 2 seconds..."
+		sleep 2
+	done
+}
+
+_restart_networking_services() {
+	echo "Restarting dhcpcd & wpa_supplicant services"
+	_restart_and_wait_for_service_state dhcpcd running
+	_restart_and_wait_for_service_state wpa_supplicant running
+}
+
+#################################
+# PHYSICAL INTERFACE MANAGEMENT #
+#################################
+_enable_wireless_card_if_necessary() {
+	wifi_state=$(rfkill list wifi -o Soft -n)
+	if [[ "${wifi_state}" == "blocked" ]]; then
+		echo "Wireless card is disabled - enabling ..."
+		rfkill unblock wifi
+	fi
+}
+
+################################
+# VIRTUAL INTERFACE MANAGEMENT #
+################################
+_reload_udev_rules() {
+	udevadm control --reload-rules
+	udevadm trigger
+}
+
+_create_virtual_interface() {
+	echo "Creating virtual interface ${access_point_interface} to run AP mode"
+	cat >"${UDEV_RULES_FILE}" <<EOF
+SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${wifi_interface_mac}", KERNEL=="phy0", \
+RUN+="/sbin/iw phy phy0 interface add ${access_point_interface} type __ap", \
+RUN+="/bin/ip link set ${access_point_interface} address ${access_point_interface_mac}"
+EOF
+	_reload_udev_rules
+}
+
+_wait_for_virtual_interface() {
+	until ip a l "${access_point_interface}" &>/dev/null; do
+		echo "Interface '${access_point_interface}' is not ready - sleeping for 2 seconds..."
+		sleep 2
+	done
+}
+
+_remove_virtual_interface() {
+	if [[ -f "${UDEV_RULES_FILE}" ]]; then
+		echo "Removing virtual interface ${wifi_interface} to run AP mode"
+		rm "${UDEV_RULES_FILE}"
+	fi
+	_reload_udev_rules
+	if iw dev | grep -q "${access_point_interface}"; then
+		iw dev "${access_point_interface}" del
+	fi
+}
+
+########################
+# WIFI MODE MANAGEMENT #
+########################
+_unmask_service_if_necessary() {
+	if [ "$(systemctl show -p LoadState --value "${1}")" == "masked" ]; then
+		systemctl unmask "${1}"
+	fi
+}
+
+_start_ap_mode() {
 	echo "Starting Wifi: Access Point Mode ..."
 	ifconfig "${access_point_interface}" "${interface_ip}" netmask "${subnet_mask}"
 	ifconfig "${access_point_interface}" up
 	if systemctl status pt-dhcp-server &>/dev/null; then
-		restart_and_wait_for_service_state pt-dhcp-server exited
+		_restart_and_wait_for_service_state pt-dhcp-server exited
 	else
-		restart_and_wait_for_service_state isc-dhcp-server running
+		_restart_and_wait_for_service_state isc-dhcp-server running
 	fi
-	unmask_service_if_necessary hostapd
-	restart_and_wait_for_service_state hostapd running || true
+	_unmask_service_if_necessary hostapd
+	_restart_and_wait_for_service_state hostapd running || true
 	wpa_cli -i "${wifi_interface}" reconfigure &>/dev/null
 	echo "Started AP mode with SSID ${ssid}"
 }
 
-stop_ap_mode_if_active() {
+_stop_ap_mode_if_active() {
 	if systemctl status hostapd &>/dev/null; then
 		echo "Stopping Wifi: Access Point Mode ..."
 		systemctl stop hostapd
@@ -132,131 +264,16 @@ stop_ap_mode_if_active() {
 	wpa_cli -i "${wifi_interface}" reconfigure &>/dev/null
 }
 
-start_wifi_managed_mode() {
+_start_wifi_managed_mode() {
 	echo "Starting Wifi: Managed Mode ..."
 	dhclient -r "${wifi_interface}"
 	if systemctl status pt-dhcp-server &>/dev/null; then
-		restart_and_wait_for_service_state pt-dhcp-server exited
+		_restart_and_wait_for_service_state pt-dhcp-server exited
 	else
 		systemctl stop isc-dhcp-server
 	fi
-	restart_and_wait_for_service_state dhcpcd running
-	restart_and_wait_for_service_state wpa_supplicant running
+	_restart_and_wait_for_service_state dhcpcd running
+	_restart_and_wait_for_service_state wpa_supplicant running
 }
 
-restart_networking_services() {
-	echo "Restarting dhcpcd & wpa_supplicant services"
-	restart_and_wait_for_service_state dhcpcd running
-	restart_and_wait_for_service_state wpa_supplicant running
-}
-
-get_hostapd_state() {
-	state=$(systemctl show -p ActiveState --value hostapd)
-	echo "${state}"
-}
-
-print_current_status() {
-	state=$(get_hostapd_state)
-	echo "State: ${state}"
-	if [[ "${state}" == "active" ]]; then
-		echo "SSID: ${ssid}"
-		echo "Passphrase: ${wpa_passphrase}"
-		echo "IP Address: ${interface_ip}"
-	fi
-}
-
-reload_udev_rules() {
-	udevadm control --reload-rules
-	udevadm trigger
-}
-
-wait_for_interface() {
-	interface="${1}"
-	until ip a l "${interface}" &>/dev/null; do
-		echo "Interface ${interface} not ready - sleeping for 2 seconds..."
-		sleep 2
-	done
-}
-
-create_virtual_interface() {
-	echo "Creating virtual interface ${access_point_interface} to run AP mode"
-	cat >"${UDEV_RULES_FILE}" <<EOF
-SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${wifi_interface_mac}", KERNEL=="phy0", \
-RUN+="/sbin/iw phy phy0 interface add ${access_point_interface} type __ap", \
-RUN+="/bin/ip link set ${access_point_interface} address ${access_point_interface_mac}"
-
-EOF
-	reload_udev_rules
-	wait_for_interface "${access_point_interface}"
-}
-
-remove_virtual_interface() {
-	if [[ -f "${UDEV_RULES_FILE}" ]]; then
-		echo "Removing virtual interface ${wifi_interface} to run AP mode"
-		rm "${UDEV_RULES_FILE}"
-	fi
-	reload_udev_rules
-	if iw dev | grep -q "${access_point_interface}"; then
-		iw dev "${access_point_interface}" del
-	fi
-}
-
-if [[ "$EUID" -ne 0 ]]; then
-	echo "Please run as root"
-	exit 1
-fi
-
-command=${1:-}
-valid_commands=("start" "stop" "status")
-if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
-	# shellcheck disable=SC2145
-	echo "Invalid argument: accepted values are: ${valid_commands[@]}."
-	echo ""
-	usage_and_exit
-fi
-
-# shellcheck disable=SC1090
-source "${AP_MODE_CONFIG_FILE}"
-
-access_point_interface="${access_point_interface:-ap0}"
-access_point_interface_mac="${access_point_interface_mac:-99:88:77:66:55:44}"
-wifi_interface="${wifi_interface:-wlan0}"
-wifi_interface_mac="$(cat /sys/class/net/"${wifi_interface}"/address)"
-static_ip_prefix="${static_ip_prefix:-192.168.90}"
-interface_ip="${interface_ip:-${static_ip_prefix}.1}"
-subnet_ip="${subnet_ip:-${static_ip_prefix}.0}"
-subnet_mask="${subnet_mask:-255.255.255.0}"
-dhcp_start="${dhcp_start:-${static_ip_prefix}.10}"
-dhcp_end="${dhcp_end:-${static_ip_prefix}.50}"
-
-ssid="${ssid:-${2}}"
-wpa_passphrase="${wpa_passphrase:-${3}}"
-
-if [[ -z "${ssid}" ]]; then
-	echo "No SSID provided."
-	echo ""
-	usage_and_exit
-fi
-
-if [[ -z "${wpa_passphrase}" ]]; then
-	echo "No passphrase provided."
-	echo ""
-	usage_and_exit
-fi
-
-if [[ "${command}" == "start" ]]; then
-	enable_wireless_card_if_necessary
-	stop_ap_mode_if_active
-	create_virtual_interface
-	patch_config_files
-	start_ap_mode
-	restart_networking_services
-	print_current_status
-elif [[ "${command}" == "stop" ]]; then
-	stop_ap_mode_if_active
-	clean_config_files
-	remove_virtual_interface
-	start_wifi_managed_mode
-elif [[ "${command}" == "status" ]]; then
-	print_current_status
-fi
+main

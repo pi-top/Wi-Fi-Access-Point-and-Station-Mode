@@ -63,16 +63,16 @@ if [[ -z "${wpa_passphrase}" ]]; then
 	usage_and_exit
 fi
 
-access_point_interface="${access_point_interface:-ap0}"
-access_point_interface_mac="${access_point_interface_mac:-99:88:77:66:55:44}"
-wifi_interface="${wifi_interface:-wlan0}"
-wifi_interface_mac="$(cat /sys/class/net/"${wifi_interface}"/address)"
-static_ip_prefix="${static_ip_prefix:-192.168.90}"
-interface_ip="${interface_ip:-${static_ip_prefix}.1}"
-subnet_ip="${subnet_ip:-${static_ip_prefix}.0}"
-subnet_mask="${subnet_mask:-255.255.255.0}"
-dhcp_start="${dhcp_start:-${static_ip_prefix}.10}"
-dhcp_end="${dhcp_end:-${static_ip_prefix}.50}"
+AP_IFACE="${AP_IFACE:-ap0}"
+AP_MAC="${AP_MAC:-99:88:77:66:55:44}"
+WIFI_IFACE="${WIFI_IFACE:-wlan0}"
+WIFI_IFACE_MAC="$(cat /sys/class/net/"${WIFI_IFACE}"/address)"
+STATIC_IP_PREFIX="${STATIC_IP_PREFIX:-192.168.90}"
+IFACE_IP="${IFACE_IP:-${STATIC_IP_PREFIX}.1}"
+SUBNET_IP="${SUBNET_IP:-${STATIC_IP_PREFIX}.0}"
+SUBNET_MASK="${SUBNET_MASK:-255.255.255.0}"
+DHCP_RANGE_START="${DHCP_RANGE_START:-${STATIC_IP_PREFIX}.10}"
+DHCP_RANGE_END="${DHCP_RANGE_END:-${STATIC_IP_PREFIX}.50}"
 
 main() {
 	if [[ "${command}" == "start" ]]; then
@@ -108,7 +108,7 @@ print_current_status() {
 	if [[ "${state}" == "active" ]]; then
 		echo "SSID: ${ssid}"
 		echo "Passphrase: ${wpa_passphrase}"
-		echo "IP Address: ${interface_ip}"
+		echo "IP Address: ${IFACE_IP}"
 	fi
 }
 
@@ -124,11 +124,11 @@ _clean_config_files() {
 
 	echo "Restoring /etc/dhcpcd.conf"
 	# shellcheck disable=2016
-	sed -i -e '1h;2,$H;$!d;g' -e 's|interface '"${access_point_interface}"'\nstatic ip_address='"${interface_ip}"'/24||' /etc/dhcpcd.conf
+	sed -i -e '1h;2,$H;$!d;g' -e 's|interface '"${AP_IFACE}"'\nstatic ip_address='"${IFACE_IP}"'/24||' /etc/dhcpcd.conf
 
 	echo "Restoring /etc/default/isc-dhcp-server"
-	sed -i 's|INTERFACESv4="ptusb0 '"${access_point_interface}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server
-	sed -i 's|INTERFACESv4="'"${access_point_interface}"'"|INTERFACESv4=""|' /etc/default/isc-dhcp-server
+	sed -i 's|INTERFACESv4="ptusb0 '"${AP_IFACE}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server
+	sed -i 's|INTERFACESv4="'"${AP_IFACE}"'"|INTERFACESv4=""|' /etc/default/isc-dhcp-server
 }
 
 _patch_config_files() {
@@ -140,28 +140,28 @@ _patch_config_files() {
 
 	echo "Configuring hostapd ..."
 	cp "${HOSTAPD_BASE_CONF}" /etc/hostapd/hostapd.conf
-	echo -e "interface=${access_point_interface}\nssid=${ssid}\nwpa_passphrase=${wpa_passphrase}" >>/etc/hostapd/hostapd.conf
+	echo -e "interface=${AP_IFACE}\nssid=${ssid}\nwpa_passphrase=${wpa_passphrase}" >>/etc/hostapd/hostapd.conf
 
-	if ! grep -q "interface ${access_point_interface}\nstatic ip_address=${interface_ip}/24" /etc/dhcpcd.conf; then
+	if ! grep -q "interface ${AP_IFACE}\nstatic ip_address=${IFACE_IP}/24" /etc/dhcpcd.conf; then
 		echo "Setting static IP configuration in /etc/dhcpcd.conf ..."
-		echo -e "interface ${access_point_interface}\\nstatic ip_address=${interface_ip}/24" >>/etc/dhcpcd.conf
+		echo -e "interface ${AP_IFACE}\\nstatic ip_address=${IFACE_IP}/24" >>/etc/dhcpcd.conf
 	fi
 
-	if ! grep -q "subnet ${subnet_ip} netmask ${subnet_mask} {" /etc/dhcp/dhcpd.conf; then
+	if ! grep -q "subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {" /etc/dhcp/dhcpd.conf; then
 		echo "Setting subnet configuration in /etc/dhcp/dhcpd.conf ..."
-		echo "subnet ${subnet_ip} netmask ${subnet_mask} {
-    range ${static_ip_prefix}.${dhcp_start} ${static_ip_prefix}.${dhcp_end};
-    option subnet-mask ${subnet_mask};
-    option routers ${interface_ip};
+		echo "subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {
+    range ${STATIC_IP_PREFIX}.${DHCP_RANGE_START} ${STATIC_IP_PREFIX}.${DHCP_RANGE_END};
+    option subnet-mask ${SUBNET_MASK};
+    option routers ${IFACE_IP};
     option domain-name-servers 8.8.8.8, 8.8.4.4;
     option time-offset 0;
-    option broadcast-address ${static_ip_prefix}.255;
+    option broadcast-address ${STATIC_IP_PREFIX}.255;
   }" >>/etc/dhcp/dhcpd.conf
 	fi
 
-	echo "Configuring ${access_point_interface} in /etc/default/isc-dhcp-server..."
-	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '"${access_point_interface}"'",' /etc/default/isc-dhcp-server
-	sed -i 's,INTERFACESv4="",INTERFACESv4="'"${access_point_interface}"'",' /etc/default/isc-dhcp-server
+	echo "Configuring ${AP_IFACE} in /etc/default/isc-dhcp-server..."
+	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '"${AP_IFACE}"'",' /etc/default/isc-dhcp-server
+	sed -i 's,INTERFACESv4="",INTERFACESv4="'"${AP_IFACE}"'",' /etc/default/isc-dhcp-server
 }
 
 ############################
@@ -204,30 +204,30 @@ _reload_udev_rules() {
 }
 
 _create_virtual_interface() {
-	echo "Creating virtual interface ${access_point_interface} to run AP mode"
+	echo "Creating virtual interface ${AP_IFACE} to run AP mode"
 	cat >"${UDEV_RULES_FILE}" <<EOF
-SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${wifi_interface_mac}", KERNEL=="phy0", \
-RUN+="/sbin/iw phy phy0 interface add ${access_point_interface} type __ap", \
-RUN+="/bin/ip link set ${access_point_interface} address ${access_point_interface_mac}"
+SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${WIFI_IFACE_MAC}", KERNEL=="phy0", \
+RUN+="/sbin/iw phy phy0 interface add ${AP_IFACE} type __ap", \
+RUN+="/bin/ip link set ${AP_IFACE} address ${AP_MAC}"
 EOF
 	_reload_udev_rules
 }
 
 _wait_for_virtual_interface() {
-	until ip a l "${access_point_interface}" &>/dev/null; do
-		echo "Interface '${access_point_interface}' is not ready - sleeping for 2 seconds..."
+	until ip a l "${AP_IFACE}" &>/dev/null; do
+		echo "Interface '${AP_IFACE}' is not ready - sleeping for 2 seconds..."
 		sleep 2
 	done
 }
 
 _remove_virtual_interface() {
 	if [[ -f "${UDEV_RULES_FILE}" ]]; then
-		echo "Removing virtual interface ${wifi_interface} to run AP mode"
+		echo "Removing virtual interface ${WIFI_IFACE} to run AP mode"
 		rm "${UDEV_RULES_FILE}"
 	fi
 	_reload_udev_rules
-	if iw dev | grep -q "${access_point_interface}"; then
-		iw dev "${access_point_interface}" del
+	if iw dev | grep -q "${AP_IFACE}"; then
+		iw dev "${AP_IFACE}" del
 	fi
 }
 
@@ -242,8 +242,8 @@ _unmask_service_if_necessary() {
 
 _start_ap_mode() {
 	echo "Starting Wifi: Access Point Mode ..."
-	ifconfig "${access_point_interface}" "${interface_ip}" netmask "${subnet_mask}"
-	ifconfig "${access_point_interface}" up
+	ifconfig "${AP_IFACE}" "${IFACE_IP}" netmask "${SUBNET_MASK}"
+	ifconfig "${AP_IFACE}" up
 	if systemctl status pt-dhcp-server &>/dev/null; then
 		_restart_and_wait_for_service_state pt-dhcp-server exited
 	else
@@ -251,7 +251,7 @@ _start_ap_mode() {
 	fi
 	_unmask_service_if_necessary hostapd
 	_restart_and_wait_for_service_state hostapd running || true
-	wpa_cli -i "${wifi_interface}" reconfigure &>/dev/null
+	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
 	echo "Started AP mode with SSID ${ssid}"
 }
 
@@ -261,12 +261,12 @@ _stop_ap_mode_if_active() {
 		systemctl stop hostapd
 		echo "Stopped AP mode"
 	fi
-	wpa_cli -i "${wifi_interface}" reconfigure &>/dev/null
+	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
 }
 
 _start_wifi_managed_mode() {
 	echo "Starting Wifi: Managed Mode ..."
-	dhclient -r "${wifi_interface}"
+	dhclient -r "${WIFI_IFACE}"
 	if systemctl status pt-dhcp-server &>/dev/null; then
 		_restart_and_wait_for_service_state pt-dhcp-server exited
 	else

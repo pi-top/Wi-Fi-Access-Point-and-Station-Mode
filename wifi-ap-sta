@@ -63,7 +63,9 @@ fi
 # shellcheck disable=SC1090
 source "${AP_MODE_CONFIG_FILE}"
 
-if [[ -z "${AP_PASSWORD}" ]]; then
+initialise_ap_values
+
+if [[ -z "${AP_PASSWORD:-}" ]]; then
 	echo "No Wi-Fi password was specified - attempting to use Raspberry Pi serial number."
 	rpi_serial=$(grep "Serial" /proc/cpuinfo | awk '{print $3}')
 
@@ -78,8 +80,6 @@ if [[ -z "${AP_PASSWORD}" ]]; then
 	fi
 
 fi
-
-initialise_ap_values
 
 main() {
 	if [[ "${command}" == "start" ]]; then

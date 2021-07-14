@@ -9,6 +9,30 @@ IFS=$'\n\t'
 
 AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
 
+initialise_ap_values() {
+	AP_SSID="${AP_SSID:-$(hostname)}"
+	AP_IFACE="${AP_IFACE:-ap0}"
+	AP_MAC="${AP_MAC:-99:88:77:66:55:44}"
+	WIFI_IFACE="${WIFI_IFACE:-wlan0}"
+	WIFI_IFACE_MAC="$(cat /sys/class/net/"${WIFI_IFACE}"/address)"
+	STATIC_IP_PREFIX="${STATIC_IP_PREFIX:-192.168.90}"
+	IFACE_IP="${IFACE_IP:-${STATIC_IP_PREFIX}.1}"
+	SUBNET_IP="${SUBNET_IP:-${STATIC_IP_PREFIX}.0}"
+	SUBNET_MASK="${SUBNET_MASK:-255.255.255.0}"
+	DHCP_RANGE_START="${DHCP_RANGE_START:-${STATIC_IP_PREFIX}.10}"
+	DHCP_RANGE_END="${DHCP_RANGE_END:-${STATIC_IP_PREFIX}.50}"
+
+	# Default required hostapd configuration
+	HOSTAPD_hw_mode="${HOSTAPD_hw_mode:-g}"
+	HOSTAPD_channel="${HOSTAPD_channel:-6}"
+	HOSTAPD_macaddr_acl="${HOSTAPD_macaddr_acl:-0}"
+	HOSTAPD_auth_algs="${HOSTAPD_auth_algs:-1}"
+	HOSTAPD_ignore_broadcast_ssid="${HOSTAPD_ignore_broadcast_ssid:-0}"
+	HOSTAPD_wpa="${HOSTAPD_wpa:-2}"
+	HOSTAPD_wpa_pairwise="${HOSTAPD_wpa_pairwise:-TKIP}"
+	HOSTAPD_rsn_pairwise="${HOSTAPD_rsn_pairwise:-CCMP}"
+}
+
 usage_and_exit() {
 	echo "Application that sets up a Raspberry Pi as a wireless access point."
 	echo "Customize the access point settings by editing ${AP_MODE_CONFIG_FILE}"
@@ -55,27 +79,7 @@ if [[ -z "${AP_PASSWORD}" ]]; then
 
 fi
 
-AP_SSID="${AP_SSID:-$(hostname)}"
-AP_IFACE="${AP_IFACE:-ap0}"
-AP_MAC="${AP_MAC:-99:88:77:66:55:44}"
-WIFI_IFACE="${WIFI_IFACE:-wlan0}"
-WIFI_IFACE_MAC="$(cat /sys/class/net/"${WIFI_IFACE}"/address)"
-STATIC_IP_PREFIX="${STATIC_IP_PREFIX:-192.168.90}"
-IFACE_IP="${IFACE_IP:-${STATIC_IP_PREFIX}.1}"
-SUBNET_IP="${SUBNET_IP:-${STATIC_IP_PREFIX}.0}"
-SUBNET_MASK="${SUBNET_MASK:-255.255.255.0}"
-DHCP_RANGE_START="${DHCP_RANGE_START:-${STATIC_IP_PREFIX}.10}"
-DHCP_RANGE_END="${DHCP_RANGE_END:-${STATIC_IP_PREFIX}.50}"
-
-# Default required hostapd configuration
-HOSTAPD_hw_mode="${HOSTAPD_hw_mode:-g}"
-HOSTAPD_channel="${HOSTAPD_channel:-6}"
-HOSTAPD_macaddr_acl="${HOSTAPD_macaddr_acl:-0}"
-HOSTAPD_auth_algs="${HOSTAPD_auth_algs:-1}"
-HOSTAPD_ignore_broadcast_ssid="${HOSTAPD_ignore_broadcast_ssid:-0}"
-HOSTAPD_wpa="${HOSTAPD_wpa:-2}"
-HOSTAPD_wpa_pairwise="${HOSTAPD_wpa_pairwise:-TKIP}"
-HOSTAPD_rsn_pairwise="${HOSTAPD_rsn_pairwise:-CCMP}"
+initialise_ap_values
 
 main() {
 	if [[ "${command}" == "start" ]]; then

@@ -1,2 +1,0 @@
-rm_conffile /etc/default/wifi-ap-sta/defaults.conf 0.2.3
-rm_conffile /etc/default/wifi-ap-sta/hostapd_base.conf 0.2.3

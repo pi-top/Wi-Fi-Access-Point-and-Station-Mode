@@ -316,6 +316,7 @@ _start_ap_mode() {
 	fi
 	_unmask_service_if_necessary hostapd
 	_restart_and_wait_for_service_state hostapd running || true
+	systemctl enable hostapd
 	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
 	echo "Started AP mode with SSID ${AP_SSID}"
 }
@@ -324,6 +325,7 @@ _stop_ap_mode_if_active() {
 	if systemctl status hostapd &>/dev/null; then
 		echo "Stopping Wifi: Access Point Mode ..."
 		systemctl stop hostapd
+		systemctl disable hostapd
 		echo "Stopped AP mode"
 	fi
 	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null

@@ -157,7 +157,7 @@ _clean_config_files() {
 
 	echo "Restoring /etc/dhcpcd.conf"
 	# shellcheck disable=2016
-	sed -i -e '1h;2,$H;$!d;g' -e 's|interface '"${AP_IFACE}"'\nstatic ip_address='"${IFACE_IP}"'/24||' /etc/dhcpcd.conf
+	sed -i -e '1h;2,$H;$!d;g' -e 's|interface '"${AP_IFACE}"'\nstatic ip_address='"${IFACE_IP}"'/24||g' /etc/dhcpcd.conf
 
 	echo "Restoring /etc/default/isc-dhcp-server"
 	sed -i 's|INTERFACESv4="ptusb0 '"${AP_IFACE}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server
@@ -180,7 +180,7 @@ _patch_config_files() {
 	echo -e "interface=${AP_IFACE}\nssid=${AP_SSID}\nwpa_passphrase=${AP_PASSWORD}" >>"${hostapd_conf}"
 
 	dhcpcd_conf="/etc/dhcpcd.conf"
-	if ! grep -q "interface ${AP_IFACE}\nstatic ip_address=${IFACE_IP}/24" "${dhcpcd_conf}"; then
+	if ! grep -qzoP "interface ${AP_IFACE}\nstatic ip_address=${IFACE_IP}/24" "${dhcpcd_conf}"; then
 		echo "Setting static IP configuration in ${dhcpcd_conf} ..."
 		echo -e "interface ${AP_IFACE}\\nstatic ip_address=${IFACE_IP}/24" >>"${dhcpcd_conf}"
 	fi

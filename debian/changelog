@@ -1,7 +1,6 @@
 wi-fi-access-point-and-station-mode (0.3.0-2) buster; urgency=medium
 
-  [ Mike Roberts ]
-  * Migrate to service-less implementation (#27)
+  * Migrate to service-less implementation
 
  -- pi-top <deb-maintainers@pi-top.com>  Thu, 15 Jul 2021 16:54:59 +0000
 

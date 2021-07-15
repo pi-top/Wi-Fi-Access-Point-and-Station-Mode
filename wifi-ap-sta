@@ -19,10 +19,12 @@ initialise_ap_values() {
 	IFACE_IP="${IFACE_IP:-${STATIC_IP_PREFIX}.1}"
 	SUBNET_IP="${SUBNET_IP:-${STATIC_IP_PREFIX}.0}"
 	SUBNET_MASK="${SUBNET_MASK:-255.255.255.0}"
-	DHCP_RANGE_START="${DHCP_RANGE_START:-${STATIC_IP_PREFIX}.10}"
-	DHCP_RANGE_END="${DHCP_RANGE_END:-${STATIC_IP_PREFIX}.50}"
+	DHCP_RANGE_START="${DHCP_RANGE_START:-10}"
+	DHCP_RANGE_END="${DHCP_RANGE_END:-50}"
 
 	# Default required hostapd configuration
+	HOSTAPD_ctrl_interface="${HOSTAPD_ctrl_interface:-/var/run/hostapd}"
+	HOSTAPD_ctrl_interface_group="${HOSTAPD_ctrl_interface_group:-0}"
 	HOSTAPD_hw_mode="${HOSTAPD_hw_mode:-g}"
 	HOSTAPD_channel="${HOSTAPD_channel:-6}"
 	HOSTAPD_macaddr_acl="${HOSTAPD_macaddr_acl:-0}"
@@ -66,16 +68,13 @@ source "${AP_MODE_CONFIG_FILE}"
 initialise_ap_values
 
 if [[ -z "${AP_PASSWORD:-}" ]]; then
-	echo "No Wi-Fi password was specified - attempting to use Raspberry Pi serial number."
 	rpi_serial=$(grep "Serial" /proc/cpuinfo | awk '{print $3}')
 
 	if [[ -n "${rpi_serial}" ]]; then
 		processed_serial="$(echo "${rpi_serial: -8}" | tr '[:lower:]' '[:upper:]')"
-		echo "Serial number found - using '${processed_serial}' for Wi-Fi password"
 		AP_PASSWORD="${processed_serial}"
 	else
 		fallback_password="12345678"
-		echo "Serial number not found - using '${fallback_password}' for Wi-Fi password"
 		AP_PASSWORD="${fallback_password}"
 	fi
 
@@ -100,6 +99,7 @@ do_start() {
 	_patch_config_files
 	_start_ap_mode
 	_restart_networking_services
+	_wait_for_virtual_interface_ip_addr
 }
 
 do_stop() {
@@ -110,13 +110,39 @@ do_stop() {
 }
 
 print_current_status() {
-	state=$(systemctl show -p ActiveState --value hostapd)
-	echo "State: ${state}"
-	if [[ "${state}" == "active" ]]; then
-		echo -e "Access Point Network SSID:\t${AP_SSID}"
-		echo -e "Access Point Wi-Fi Password:\t${AP_PASSWORD}"
-		echo -e "Access Point IP Address:\t${IFACE_IP}"
+	hostapd_state=$(systemctl show -p ActiveState --value hostapd)
+	if [[ "${hostapd_state}" != "active" ]]; then
+		state="inactive"
+		echo "State: ${state}"
+		return
 	fi
+
+	state="pending"
+
+	if ! hostapd_cli get_config &>/dev/null; then
+		echo "State: ${state}"
+		return
+	fi
+
+	config="$(hostapd_cli get_config 2>/dev/null)"
+
+	iface="$(echo "${config}" | head -n1 | awk '{print $NF}' | tr -d "'")"
+	ip_addr="$(ip -f inet addr show "${iface}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')"
+
+	if [[ -z "${ip_addr:-}" ]]; then
+		echo "State: ${state}"
+		return
+	fi
+
+	echo "State: active"
+
+	ssid="$(echo "${config}" | grep "^ssid=" | cut -d'=' -f2)"
+	echo -e "Access Point Network SSID:\t${ssid}"
+
+	hostapd_cli reload &>/dev/null
+	echo -e "Access Point Wi-Fi Password:\t${AP_PASSWORD}"
+
+	echo -e "Access Point IP Address:\t${ip_addr}"
 }
 
 ##########################
@@ -180,19 +206,30 @@ _patch_config_files() {
 ############################
 # STATE REFRESH MANAGEMENT #
 ############################
+_service_is_ready() {
+	local service_name="${1}"
+	local service_state="${2:-running}"
+	if [ "$(systemctl show -p ActiveState --value "${service_name}")" != "active" ] || [ "$(systemctl show -p SubState --value "${service_name}")" != "${service_state}" ]; then
+		return 1
+	else
+		return 0
+	fi
+}
+
 _restart_and_wait_for_service_state() {
-	service_name="${1}"
-	service_state="${2:-running}"
+	local service_name="${1}"
+	local service_state="${2:-running}"
 	echo "Restarting service ${service_name}..."
 	systemctl restart "${service_name}"
-	while [ "$(systemctl show -p ActiveState --value "${service_name}")" != "active" ] || [ "$(systemctl show -p SubState --value "${service_name}")" != "${service_state}" ]; do
-		echo "Service ${service_name} isn't ready - sleeping for 2 seconds..."
-		sleep 2
-	done
+	if ! _service_is_ready "${service_name}" "${service_state}"; then
+		echo "Service '${service_name}' isn't ready - waiting..."
+		while ! _service_is_ready "${service_name}" "${service_state}"; do
+			sleep 1
+		done
+	fi
 }
 
 _restart_networking_services() {
-	echo "Restarting dhcpcd & wpa_supplicant services"
 	_restart_and_wait_for_service_state dhcpcd running
 	_restart_and_wait_for_service_state wpa_supplicant running
 }
@@ -219,7 +256,7 @@ _reload_udev_rules() {
 }
 
 _create_virtual_interface() {
-	echo "Creating virtual interface ${AP_IFACE} to run AP mode"
+	echo "Creating virtual interface '${AP_IFACE}'..."
 	cat >"${UDEV_RULES_FILE}" <<EOF
 SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${WIFI_IFACE_MAC}", KERNEL=="phy0", \
 RUN+="/sbin/iw phy phy0 interface add ${AP_IFACE} type __ap", \
@@ -229,15 +266,28 @@ EOF
 }
 
 _wait_for_virtual_interface() {
-	until ip a l "${AP_IFACE}" &>/dev/null; do
-		echo "Interface '${AP_IFACE}' is not ready - sleeping for 2 seconds..."
-		sleep 2
-	done
+	if ! ip a l "${AP_IFACE}" &>/dev/null; then
+		echo "Interface '${AP_IFACE}' isn't ready - waiting..."
+		while ! ip a l "${AP_IFACE}" &>/dev/null; do
+			sleep 1
+		done
+	fi
+}
+
+_wait_for_virtual_interface_ip_addr() {
+	iface="$(hostapd_cli get_config | head -n1 | awk '{print $NF}' | tr -d "'")"
+
+	if [[ -z "$(ip -f inet addr show "${iface}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; then
+		echo "Interface '${iface}' does not yet have an IP address - waiting..."
+		while [[ -z "$(ip -f inet addr show "${iface}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; do
+			sleep 1
+		done
+	fi
 }
 
 _remove_virtual_interface() {
 	if [[ -f "${UDEV_RULES_FILE}" ]]; then
-		echo "Removing virtual interface ${WIFI_IFACE} to run AP mode"
+		echo "Removing virtual interface '${AP_IFACE}'..."
 		rm "${UDEV_RULES_FILE}"
 	fi
 	_reload_udev_rules

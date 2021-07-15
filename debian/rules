@@ -2,6 +2,3 @@
 
 %:
 	dh $@
-
-override_dh_installsystemd:
-	dh_installsystemd --no-enable --no-start --name=wifi-ap-sta

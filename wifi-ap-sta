@@ -138,10 +138,7 @@ print_current_status() {
 
 	ssid="$(echo "${config}" | grep "^ssid=" | cut -d'=' -f2)"
 	echo -e "Access Point Network SSID:\t${ssid}"
-
-	hostapd_cli reload &>/dev/null
 	echo -e "Access Point Wi-Fi Password:\t${AP_PASSWORD}"
-
 	echo -e "Access Point IP Address:\t${ip_addr}"
 }
 

@@ -9,6 +9,11 @@ IFS=$'\n\t'
 
 AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
 
+wifi_country() {
+	country=$(wpa_cli -i "$WIFI_IFACE" get country 2>/dev/null)
+	echo "${country:-00}"
+}
+
 initialise_ap_values() {
 	AP_SSID="${AP_SSID:-$(hostname)}"
 	AP_IFACE="${AP_IFACE:-ap0}"
@@ -33,6 +38,7 @@ initialise_ap_values() {
 	HOSTAPD_wpa="${HOSTAPD_wpa:-2}"
 	HOSTAPD_wpa_pairwise="${HOSTAPD_wpa_pairwise:-TKIP}"
 	HOSTAPD_rsn_pairwise="${HOSTAPD_rsn_pairwise:-CCMP}"
+	HOSTAPD_country_code="${HOSTAPD_country_code:-$(wifi_country)}"
 }
 
 usage_and_exit() {
@@ -137,9 +143,9 @@ print_current_status() {
 	echo "State: active"
 
 	ssid="$(echo "${config}" | grep "^ssid=" | cut -d'=' -f2)"
-	echo -e "Access Point Network SSID:\t${ssid}"
-	echo -e "Access Point Wi-Fi Password:\t${AP_PASSWORD}"
-	echo -e "Access Point IP Address:\t${ip_addr}"
+	echo -e "Access Point Network SSID:\\t${ssid}"
+	echo -e "Access Point Wi-Fi Password:\\t${AP_PASSWORD}"
+	echo -e "Access Point IP Address:\\t${ip_addr}"
 }
 
 ##########################
@@ -174,12 +180,12 @@ _patch_config_files() {
 		echo "${var/HOSTAPD_/}=${!var}" >>"${hostapd_conf}"
 	done
 
-	echo -e "interface=${AP_IFACE}\nssid=${AP_SSID}\nwpa_passphrase=${AP_PASSWORD}" >>"${hostapd_conf}"
+	echo -e "interface=${AP_IFACE}\\nssid=${AP_SSID}\\nwpa_passphrase=${AP_PASSWORD}" >>"${hostapd_conf}"
 
 	dhcpcd_conf="/etc/dhcpcd.conf"
-	if ! grep -qzoP "interface ${AP_IFACE}\nstatic ip_address=${IFACE_IP}/24" "${dhcpcd_conf}"; then
+	if ! grep -qzoP "interface ${AP_IFACE}\\nstatic ip_address=${IFACE_IP}/24" "${dhcpcd_conf}"; then
 		echo "Setting static IP configuration in ${dhcpcd_conf} ..."
-		echo -e "interface ${AP_IFACE}\nstatic ip_address=${IFACE_IP}/24\nnohook wpa_supplicant" >>"${dhcpcd_conf}"
+		echo -e "interface ${AP_IFACE}\\nstatic ip_address=${IFACE_IP}/24\\nnohook wpa_supplicant" >>"${dhcpcd_conf}"
 	fi
 
 	dhcpd_conf="/etc/dhcp/dhcpd.conf"

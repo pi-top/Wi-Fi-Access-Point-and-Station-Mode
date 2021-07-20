@@ -1,3 +1,13 @@
+wi-fi-access-point-and-station-mode (0.3.0-3) buster; urgency=medium
+
+  [ pre-commit-ci[bot] ]
+  * [pre-commit.ci] pre-commit autoupdate (#31)
+
+  [ Jorge Capona ]
+  * Set country code in hostapd config file (#32)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Tue, 20 Jul 2021 18:17:31 +0000
+
 wi-fi-access-point-and-station-mode (0.3.0-2) buster; urgency=medium
 
   * Migrate to service-less implementation

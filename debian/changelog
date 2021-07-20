@@ -1,3 +1,16 @@
+wi-fi-access-point-and-station-mode (0.4.0-2) buster; urgency=medium
+
+  [ pre-commit-ci[bot] ]
+  * [pre-commit.ci] pre-commit autoupdate (#31)
+
+  [ Jorge Capona ]
+  * Set country code in hostapd config file (#32)
+
+  [ github-actions[bot] ]
+  * [CI] Update debian/changelog for next release (#28)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Tue, 20 Jul 2021 18:19:53 +0000
+
 wi-fi-access-point-and-station-mode (0.4.0-1) buster; urgency=medium
 
   * Set country code in hostapd config file

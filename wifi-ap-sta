@@ -10,7 +10,7 @@ IFS=$'\n\t'
 AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
 
 wifi_country() {
-	country=$(raspi-config nonint get_wifi_country)
+	country=$(wpa_cli -i "$WIFI_IFACE" get country 2>/dev/null)
 	echo "${country:-00}"
 }
 

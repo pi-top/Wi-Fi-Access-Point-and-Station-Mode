@@ -9,6 +9,11 @@ IFS=$'\n\t'
 
 AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
 
+wifi_country() {
+	country=$(raspi-config nonint get_wifi_country)
+	echo ${country:-00}
+}
+
 initialise_ap_values() {
 	AP_SSID="${AP_SSID:-$(hostname)}"
 	AP_IFACE="${AP_IFACE:-ap0}"
@@ -33,6 +38,7 @@ initialise_ap_values() {
 	HOSTAPD_wpa="${HOSTAPD_wpa:-2}"
 	HOSTAPD_wpa_pairwise="${HOSTAPD_wpa_pairwise:-TKIP}"
 	HOSTAPD_rsn_pairwise="${HOSTAPD_rsn_pairwise:-CCMP}"
+	HOSTAPD_wifi_country="${HOSTAPD_wifi_country:-$(wifi_country)}"
 }
 
 usage_and_exit() {

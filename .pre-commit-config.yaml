@@ -21,12 +21,6 @@ repos:
     hooks:
     - id: shfmt
 
--   repo: git://github.com/detailyang/pre-commit-shell
-    rev: 1.0.5
-    hooks:
-    - id: shell-lint
-      args: [-x]
-
 -   repo: https://github.com/pre-commit/mirrors-autopep8
     rev: v1.5.7
     hooks:

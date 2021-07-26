@@ -219,6 +219,7 @@ _service_is_ready() {
 }
 
 _restart_and_wait_for_service_state() {
+	ischroot && return ;
 	local service_name="${1}"
 	local service_state="${2:-running}"
 	echo "Restarting service ${service_name}..."
@@ -277,6 +278,7 @@ _wait_for_virtual_interface() {
 }
 
 _wait_for_virtual_interface_ip_addr() {
+	ischroot && return
 	iface="$(hostapd_cli get_config | head -n1 | awk '{print $NF}' | tr -d "'")"
 
 	if [[ -z "$(ip -f inet addr show "${iface}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; then
@@ -319,7 +321,7 @@ _start_ap_mode() {
 	_unmask_service_if_necessary hostapd
 	_restart_and_wait_for_service_state hostapd running || true
 	systemctl enable hostapd &>/dev/null
-	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
+	! ischroot && wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
 	echo "Started AP mode with SSID ${AP_SSID}"
 }
 
@@ -330,6 +332,7 @@ _stop_ap_mode_if_active() {
 		systemctl disable hostapd &>/dev/null
 		echo "Stopped AP mode"
 	fi
+	ischroot && return
 	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
 }
 

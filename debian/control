@@ -11,8 +11,6 @@ Package: wifi-ap-sta
 Architecture: all
 Depends:
  ${misc:Depends},
-# 'ischroot' command
- debianutils (>= 4.8.6.1),
  dhcpcd5,
  hostapd,
  isc-dhcp-server,

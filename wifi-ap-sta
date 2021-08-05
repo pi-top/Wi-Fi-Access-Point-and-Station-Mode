@@ -19,7 +19,6 @@ initialise_ap_values() {
 	AP_IFACE="${AP_IFACE:-ap0}"
 	AP_MAC="${AP_MAC:-99:88:77:66:55:44}"
 	WIFI_IFACE="${WIFI_IFACE:-wlan0}"
-	WIFI_IFACE_MAC="$(cat /sys/class/net/"${WIFI_IFACE}"/address)"
 	STATIC_IP_PREFIX="${STATIC_IP_PREFIX:-192.168.90}"
 	IFACE_IP="${IFACE_IP:-${STATIC_IP_PREFIX}.1}"
 	SUBNET_IP="${SUBNET_IP:-${STATIC_IP_PREFIX}.0}"
@@ -60,7 +59,7 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 command=${1:-}
-valid_commands=("start" "stop" "status")
+valid_commands=("start" "stop" "status" "enable" "disable")
 if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
 	# shellcheck disable=SC2145
 	echo "Invalid argument: accepted values are: ${valid_commands[@]}."
@@ -91,10 +90,28 @@ main() {
 		do_start
 	elif [[ "${command}" == "stop" ]]; then
 		do_stop
+	elif [[ "${command}" == "enable" ]]; then
+		do_enable
+	elif [[ "${command}" == "disable" ]]; then
+		do_disable
 	else
 		:
 	fi
 	print_current_status
+}
+
+do_enable() {
+	_enable_wireless_card_if_necessary
+	_create_virtual_interface_udev_rule
+	_patch_config_files
+	_unmask_service_if_necessary hostapd
+	systemctl enable hostapd &>/dev/null
+}
+
+do_disable() {
+	systemctl disable hostapd &>/dev/null
+	_clean_config_files
+	_remove_virtual_interface_udev_rule
 }
 
 do_start() {
@@ -258,13 +275,17 @@ _reload_udev_rules() {
 	udevadm trigger
 }
 
-_create_virtual_interface() {
-	echo "Creating virtual interface '${AP_IFACE}'..."
+_create_virtual_interface_udev_rule() {
 	cat >"${UDEV_RULES_FILE}" <<EOF
-SUBSYSTEM=="ieee80211", ACTION=="add|change", ATTR{macaddress}=="${WIFI_IFACE_MAC}", KERNEL=="phy0", \
+SUBSYSTEM=="ieee80211", ACTION=="add|change", KERNEL=="phy0", \
 RUN+="/sbin/iw phy phy0 interface add ${AP_IFACE} type __ap", \
 RUN+="/bin/ip link set ${AP_IFACE} address ${AP_MAC}"
 EOF
+}
+
+_create_virtual_interface() {
+	echo "Creating virtual interface '${AP_IFACE}'..."
+	_create_virtual_interface_udev_rule
 	_reload_udev_rules
 }
 
@@ -288,11 +309,15 @@ _wait_for_virtual_interface_ip_addr() {
 	fi
 }
 
-_remove_virtual_interface() {
+_remove_virtual_interface_udev_rule() {
 	if [[ -f "${UDEV_RULES_FILE}" ]]; then
 		echo "Removing virtual interface '${AP_IFACE}'..."
 		rm "${UDEV_RULES_FILE}"
 	fi
+}
+
+_remove_virtual_interface() {
+	_remove_virtual_interface_udev_rule
 	_reload_udev_rules
 	if iw dev | grep -q "${AP_IFACE}"; then
 		iw dev "${AP_IFACE}" del

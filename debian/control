@@ -20,7 +20,7 @@ Depends:
  udev,
  wpasupplicant,
 Suggests:
- pt-networking,
+ pt-display-port,
 Description: Wi-Fi Access Point and Station Mode
  Easily start and stop AP-STA mode on compatible devices.
  .

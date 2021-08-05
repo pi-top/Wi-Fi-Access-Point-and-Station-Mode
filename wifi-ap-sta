@@ -59,7 +59,7 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 command=${1:-}
-valid_commands=("start" "stop" "status" "enable")
+valid_commands=("start" "stop" "status" "enable" "disable")
 if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
 	# shellcheck disable=SC2145
 	echo "Invalid argument: accepted values are: ${valid_commands[@]}."
@@ -91,12 +91,27 @@ main() {
 	elif [[ "${command}" == "stop" ]]; then
 		do_stop
 	elif [[ "${command}" == "enable" ]]; then
-		ENABLE_ONLY=1
-		do_start
+		do_enable
+	elif [[ "${command}" == "disable" ]]; then
+		do_disable
 	else
 		:
 	fi
 	print_current_status
+}
+
+do_enable() {
+	_enable_wireless_card_if_necessary
+	_create_virtual_interface_udev_rule
+	_patch_config_files
+	_unmask_service_if_necessary hostapd
+	systemctl enable hostapd &>/dev/null
+}
+
+do_disable() {
+	systemctl disable hostapd &>/dev/null
+	_clean_config_files
+	_remove_virtual_interface_udev_rule
 }
 
 do_start() {
@@ -222,7 +237,6 @@ _service_is_ready() {
 }
 
 _restart_and_wait_for_service_state() {
-	[ "${ENABLE_ONLY}" = 1 ] && return ;
 	local service_name="${1}"
 	local service_state="${2:-running}"
 	echo "Restarting service ${service_name}..."
@@ -261,13 +275,17 @@ _reload_udev_rules() {
 	udevadm trigger
 }
 
-_create_virtual_interface() {
-	echo "Creating virtual interface '${AP_IFACE}'..."
+_create_virtual_interface_udev_rule() {
 	cat >"${UDEV_RULES_FILE}" <<EOF
 SUBSYSTEM=="ieee80211", ACTION=="add|change", KERNEL=="phy0", \
 RUN+="/sbin/iw phy phy0 interface add ${AP_IFACE} type __ap", \
 RUN+="/bin/ip link set ${AP_IFACE} address ${AP_MAC}"
 EOF
+}
+
+_create_virtual_interface() {
+	echo "Creating virtual interface '${AP_IFACE}'..."
+	_create_virtual_interface_udev_rule
 	_reload_udev_rules
 }
 
@@ -281,7 +299,6 @@ _wait_for_virtual_interface() {
 }
 
 _wait_for_virtual_interface_ip_addr() {
-	[ "${ENABLE_ONLY}" = 1 ] && return ;
 	iface="$(hostapd_cli get_config | head -n1 | awk '{print $NF}' | tr -d "'")"
 
 	if [[ -z "$(ip -f inet addr show "${iface}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; then
@@ -292,11 +309,15 @@ _wait_for_virtual_interface_ip_addr() {
 	fi
 }
 
-_remove_virtual_interface() {
+_remove_virtual_interface_udev_rule() {
 	if [[ -f "${UDEV_RULES_FILE}" ]]; then
 		echo "Removing virtual interface '${AP_IFACE}'..."
 		rm "${UDEV_RULES_FILE}"
 	fi
+}
+
+_remove_virtual_interface() {
+	_remove_virtual_interface_udev_rule
 	_reload_udev_rules
 	if iw dev | grep -q "${AP_IFACE}"; then
 		iw dev "${AP_IFACE}" del
@@ -324,7 +345,7 @@ _start_ap_mode() {
 	_unmask_service_if_necessary hostapd
 	_restart_and_wait_for_service_state hostapd running || true
 	systemctl enable hostapd &>/dev/null
-	[ "${ENABLE_ONLY}" != 1 ] && wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
+	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
 	echo "Started AP mode with SSID ${AP_SSID}"
 }
 
@@ -335,7 +356,6 @@ _stop_ap_mode_if_active() {
 		systemctl disable hostapd &>/dev/null
 		echo "Stopped AP mode"
 	fi
-	[ "${ENABLE_ONLY}" = 1 ] && return ;
 	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
 }
 

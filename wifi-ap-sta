@@ -68,7 +68,7 @@ if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
 fi
 
 # shellcheck disable=SC1090
-source "${AP_MODE_CONFIG_FILE}"
+[[ -f "${AP_MODE_CONFIG_FILE}" ]] && source "${AP_MODE_CONFIG_FILE}"
 
 initialise_ap_values
 

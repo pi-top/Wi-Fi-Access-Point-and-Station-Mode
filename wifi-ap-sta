@@ -10,7 +10,9 @@ IFS=$'\n\t'
 AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
 
 wifi_country() {
+	local country
 	country=$(wpa_cli -i "$WIFI_IFACE" get country 2>/dev/null)
+	[ "${country}" = "FAIL" ] && country="00"
 	echo "${country:-00}"
 }
 

@@ -111,7 +111,7 @@ do_configure() {
 do_enable() {
 	_enable_wireless_card_if_necessary
 	_create_virtual_interface_udev_rule
-	_add_configure_on_start
+	_add_configure_on_hostapd_start
 	_unmask_service_if_necessary hostapd
 	systemctl enable hostapd &>/dev/null
 }
@@ -119,7 +119,7 @@ do_enable() {
 do_disable() {
 	systemctl disable hostapd &>/dev/null
 	_clean_config_files
-	_remove_configure_on_start
+	_remove_configure_on_hostapd_start
 	_remove_virtual_interface_udev_rule
 }
 
@@ -177,14 +177,14 @@ print_current_status() {
 ###################################
 # HOSTAPD SERVICE FILE MANAGEMENT #
 ###################################
-_add_configure_on_start() {
+_add_configure_on_hostapd_start() {
 	cat <<EOF >/lib/systemd/system/hostapd.service.d/10-wifi-ap-sta.conf
 [Service]
 ExecStartPre=/usr/bin/wifi-ap-sta configure
 EOF
 }
 
-_remove_configure_on_start() {
+_remove_configure_on_hostapd_start() {
 	rm /lib/systemd/system/hostapd.service.d/10-wifi-ap-sta.conf
 }
 

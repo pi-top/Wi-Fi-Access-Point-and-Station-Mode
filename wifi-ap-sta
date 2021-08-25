@@ -178,6 +178,7 @@ print_current_status() {
 # HOSTAPD SERVICE FILE MANAGEMENT #
 ###################################
 _add_configure_on_hostapd_start() {
+	mkdir -p /lib/systemd/system/hostapd.service.d
 	cat <<EOF >/lib/systemd/system/hostapd.service.d/10-wifi-ap-sta.conf
 [Service]
 ExecStartPre=/usr/bin/wifi-ap-sta configure

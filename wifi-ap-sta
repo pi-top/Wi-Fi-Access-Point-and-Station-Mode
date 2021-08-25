@@ -61,7 +61,7 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 command=${1:-}
-valid_commands=("start" "stop" "status" "enable" "disable")
+valid_commands=("configure" "start" "stop" "status" "enable" "disable")
 if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
 	# shellcheck disable=SC2145
 	echo "Invalid argument: accepted values are: ${valid_commands[@]}."
@@ -88,7 +88,9 @@ if [[ -z "${AP_PASSWORD:-}" ]]; then
 fi
 
 main() {
-	if [[ "${command}" == "start" ]]; then
+	if [[ "${command}" == "configure" ]]; then
+		do_configure
+	elif [[ "${command}" == "start" ]]; then
 		do_start
 	elif [[ "${command}" == "stop" ]]; then
 		do_stop
@@ -102,10 +104,14 @@ main() {
 	print_current_status
 }
 
+do_configure() {
+	_patch_config_files
+}
+
 do_enable() {
 	_enable_wireless_card_if_necessary
 	_create_virtual_interface_udev_rule
-	_patch_config_files
+	_add_configure_on_hostapd_start
 	_unmask_service_if_necessary hostapd
 	systemctl enable hostapd &>/dev/null
 }
@@ -113,6 +119,7 @@ do_enable() {
 do_disable() {
 	systemctl disable hostapd &>/dev/null
 	_clean_config_files
+	_remove_configure_on_hostapd_start
 	_remove_virtual_interface_udev_rule
 }
 
@@ -121,7 +128,7 @@ do_start() {
 	_stop_ap_mode_if_active
 	_create_virtual_interface
 	_wait_for_virtual_interface
-	_patch_config_files
+	do_configure
 	_start_ap_mode
 	_restart_networking_services
 	_wait_for_virtual_interface_ip_addr
@@ -165,6 +172,21 @@ print_current_status() {
 	echo -e "Access Point Network SSID:\\t${ssid}"
 	echo -e "Access Point Wi-Fi Password:\\t${AP_PASSWORD}"
 	echo -e "Access Point IP Address:\\t${ip_addr}"
+}
+
+###################################
+# HOSTAPD SERVICE FILE MANAGEMENT #
+###################################
+_add_configure_on_hostapd_start() {
+	mkdir -p /lib/systemd/system/hostapd.service.d
+	cat <<EOF >/lib/systemd/system/hostapd.service.d/10-wifi-ap-sta.conf
+[Service]
+ExecStartPre=/usr/bin/wifi-ap-sta configure
+EOF
+}
+
+_remove_configure_on_hostapd_start() {
+	rm /lib/systemd/system/hostapd.service.d/10-wifi-ap-sta.conf
 }
 
 ##########################

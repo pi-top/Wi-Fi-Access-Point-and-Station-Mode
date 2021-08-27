@@ -10,7 +10,9 @@ IFS=$'\n\t'
 AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
 
 wifi_country() {
+	local country
 	country=$(wpa_cli -i "$WIFI_IFACE" get country 2>/dev/null)
+	[ "${country}" = "FAIL" ] && country="00"
 	echo "${country:-00}"
 }
 
@@ -59,7 +61,7 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 command=${1:-}
-valid_commands=("start" "stop" "status" "enable" "disable")
+valid_commands=("configure" "start" "stop" "status" "enable" "disable")
 if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
 	# shellcheck disable=SC2145
 	echo "Invalid argument: accepted values are: ${valid_commands[@]}."
@@ -86,7 +88,9 @@ if [[ -z "${AP_PASSWORD:-}" ]]; then
 fi
 
 main() {
-	if [[ "${command}" == "start" ]]; then
+	if [[ "${command}" == "configure" ]]; then
+		do_configure
+	elif [[ "${command}" == "start" ]]; then
 		do_start
 	elif [[ "${command}" == "stop" ]]; then
 		do_stop
@@ -100,10 +104,14 @@ main() {
 	print_current_status
 }
 
+do_configure() {
+	_patch_config_files
+}
+
 do_enable() {
 	_enable_wireless_card_if_necessary
 	_create_virtual_interface_udev_rule
-	_patch_config_files
+	_add_configure_on_hostapd_start
 	_unmask_service_if_necessary hostapd
 	systemctl enable hostapd &>/dev/null
 }
@@ -111,6 +119,7 @@ do_enable() {
 do_disable() {
 	systemctl disable hostapd &>/dev/null
 	_clean_config_files
+	_remove_configure_on_hostapd_start
 	_remove_virtual_interface_udev_rule
 }
 
@@ -119,7 +128,7 @@ do_start() {
 	_stop_ap_mode_if_active
 	_create_virtual_interface
 	_wait_for_virtual_interface
-	_patch_config_files
+	do_configure
 	_start_ap_mode
 	_restart_networking_services
 	_wait_for_virtual_interface_ip_addr
@@ -165,9 +174,70 @@ print_current_status() {
 	echo -e "Access Point IP Address:\\t${ip_addr}"
 }
 
+###################################
+# HOSTAPD SERVICE FILE MANAGEMENT #
+###################################
+_add_configure_on_hostapd_start() {
+	mkdir -p /lib/systemd/system/hostapd.service.d
+	cat <<EOF >/lib/systemd/system/hostapd.service.d/10-wifi-ap-sta.conf
+[Service]
+ExecStartPre=/usr/bin/wifi-ap-sta configure
+EOF
+}
+
+_remove_configure_on_hostapd_start() {
+	rm /lib/systemd/system/hostapd.service.d/10-wifi-ap-sta.conf
+}
+
 ##########################
 # CONFIG FILE MANAGEMENT #
 ##########################
+package_name="wifi-ap-sta"
+
+_delete_config_file_modifications() {
+	local id="${1}"
+	local file="${2}"
+
+	local start_line_regex="^# \[${id}\] START$"
+	local end_line_regex="^# \[${id}\] END$"
+	sed -i "/${start_line_regex}/,/${end_line_regex}/d" "${file}"
+}
+
+_configure_file() {
+	local file="${1}"
+	local description="${2}"
+	local file_contents_to_append="${3}"
+	local notes="${4:-}"
+
+	# Delete current config lines in file
+	# (in case updated in package)
+	_delete_config_file_modifications "${package_name}" "${file}"
+
+	# Clean up trailing newlines
+	trimmed_file_contents="$(printf "%s" "$(<"${file}")")"
+	echo "${trimmed_file_contents}" >"${file}"
+
+	# Append config
+	(
+		echo -e ""
+		echo -e "# [${package_name}] START"
+		echo -e "#"
+		echo -e "# ${description}"
+
+		if [[ -n "${notes}" ]]; then
+			echo -e "#"
+			echo -e "# Notes: "
+			echo -e "# ${notes/$'\n'/$'\n'# }"
+		fi
+
+		echo -e "#"
+		echo -e "${file_contents_to_append}"
+
+		echo -e "#"
+		echo -e "# [${package_name}] END"
+	) >>"${file}"
+}
+
 _clean_config_files() {
 	hostapd_conf="/etc/hostapd/hostapd.conf"
 	if [[ -f "${hostapd_conf}.orig" ]]; then
@@ -176,12 +246,13 @@ _clean_config_files() {
 	fi
 
 	echo "Restoring /etc/dhcpcd.conf"
-	# shellcheck disable=2016
-	sed -i -e '1h;2,$H;$!d;g' -e 's|interface '"${AP_IFACE}"'\nstatic ip_address='"${IFACE_IP}"'/24\nnohook wpa_supplicant||g' /etc/dhcpcd.conf
+	_delete_config_file_modifications "${package_name}" /etc/dhcpcd.conf
+
+	echo "Restoring /etc/dhcp/dhcpd.conf"
+	_delete_config_file_modifications "${package_name}" /etc/dhcp/dhcpd.conf
 
 	echo "Restoring /etc/default/isc-dhcp-server"
-	sed -i 's|INTERFACESv4="ptusb0 '"${AP_IFACE}"'"|INTERFACESv4="ptusb0"|' /etc/default/isc-dhcp-server
-	sed -i 's|INTERFACESv4="'"${AP_IFACE}"'"|INTERFACESv4=""|' /etc/default/isc-dhcp-server
+	_delete_config_file_modifications "${package_name}" /etc/default/isc-dhcp-server
 }
 
 _patch_config_files() {
@@ -200,27 +271,37 @@ _patch_config_files() {
 	echo -e "interface=${AP_IFACE}\\nssid=${AP_SSID}\\nwpa_passphrase=${AP_PASSWORD}" >>"${hostapd_conf}"
 
 	dhcpcd_conf="/etc/dhcpcd.conf"
-	if ! grep -qzoP "interface ${AP_IFACE}\\nstatic ip_address=${IFACE_IP}/24" "${dhcpcd_conf}"; then
-		echo "Setting static IP configuration in ${dhcpcd_conf} ..."
-		echo -e "interface ${AP_IFACE}\\nstatic ip_address=${IFACE_IP}/24\\nnohook wpa_supplicant" >>"${dhcpcd_conf}"
-	fi
+	echo "Setting static IP configuration in ${dhcpcd_conf} ..."
+	_configure_file \
+		"${dhcpcd_conf}" \
+		"Static IP configuration for wireless access point interface" \
+		"interface ${AP_IFACE}
+static ip_address=${IFACE_IP}/24
+nohook wpa_supplicant"
 
 	dhcpd_conf="/etc/dhcp/dhcpd.conf"
-	if ! grep -q "subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {" "${dhcpd_conf}"; then
-		echo "Setting subnet configuration in ${dhcpd_conf} ..."
-		echo "subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {
+	echo "Setting subnet configuration in ${dhcpd_conf} ..."
+	_configure_file \
+		"${dhcpd_conf}" \
+		"Configuration for wireless access point network" \
+		"subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {
     range ${STATIC_IP_PREFIX}.${DHCP_RANGE_START} ${STATIC_IP_PREFIX}.${DHCP_RANGE_END};
     option subnet-mask ${SUBNET_MASK};
     option routers ${IFACE_IP};
     option domain-name-servers 8.8.8.8, 8.8.4.4;
     option time-offset 0;
     option broadcast-address ${STATIC_IP_PREFIX}.255;
-  }" >>"${dhcpd_conf}"
-	fi
+  }"
 
-	echo "Configuring ${AP_IFACE} in /etc/default/isc-dhcp-server..."
-	sed -i 's,INTERFACESv4="ptusb0",INTERFACESv4="ptusb0 '"${AP_IFACE}"'",' /etc/default/isc-dhcp-server
-	sed -i 's,INTERFACESv4="",INTERFACESv4="'"${AP_IFACE}"'",' /etc/default/isc-dhcp-server
+	echo "Configuring ${AP_IFACE} in /etc/default/isc-dhcp-server ..."
+	_configure_file \
+		/etc/default/isc-dhcp-server \
+		"Set DHCP server to serve IP addresses on Wireless Access Point interface" \
+		"if [ ! -z \"\${INTERFACESv4:-}\" ]; then
+	INTERFACESv4=\"\${INTERFACESv4} ${AP_IFACE}\"
+else
+	INTERFACESv4=\"${AP_IFACE}\"
+fi"
 }
 
 ############################

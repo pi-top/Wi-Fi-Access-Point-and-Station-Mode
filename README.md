@@ -19,35 +19,26 @@ where:
 
 ## Default Behaviour
 
-### Default config
+By default, the access point's SSID is the hostname of the machine that runs the script. If the machine is a Raspberry Pi, the default passphrase is based in the device's serial number; otherwise it defaults to `12345678`. This allows for repeatable network credentials between sessions, making it easy for clients to connect to their local device even if the OS has been reset.
 
-Check out ``defaults.conf``
+General AP mode/DHCP server configuration:
 ```
-SSID=$(hostname)
-rpi_serial=$(grep "serial" /proc/cpuinfo | awk '{print $3}')
-rpi_serial="${rpi_serial:-12345678}"
-WPA_PASSPHRASE=$(echo "${rpi_serial: -8}" | tr '[:lower:]' '[:upper:]')
-WIFI_INTERFACE=WLAN0
-ACCESS_POINT_INTERFACE=WLAN_AP0
-ACCESS_POINT_INTERFACE_MAC=99:88:77:66:55:44
+AP_SSID=$(hostname)
+AP_IFACE=ap0
+AP_MAC=99:88:77:66:55:44
+WIFI_IFACE=wlan0
 STATIC_IP_PREFIX=192.168.90
+IFACE_IP=${STATIC_IP_PREFIX}.1
+SUBNET_IP=${STATIC_IP_PREFIX}.0
 SUBNET_MASK=255.255.255.0
-INTERFACE_IP_SUFFIX=1
-SUBNET_IP_SUFFIX=0
-DHCP_START=10
-DHCP_END=50
-HOSTAPD_hw_mode=g
-HOSTAPD_channel=6
-HOSTAPD_macaddr_acl=0
-HOSTAPD_auth_algs=1
-HOSTAPD_ignore_broadcast_ssid=0
-HOSTAPD_wpa=2
-HOSTAPD_wpa_pairwise=TKIP
-HOSTAPD_rsn_pairwise=CCMP
+DHCP_RANGE_START=10
+DHCP_RANGE_END=50
 ```
 
-Produces:
+`hostapd` configuration:
 ```
+ctrl_interface=/var/run/hostapd
+ctrl_interface_group=0
 hw_mode=g
 channel=6
 macaddr_acl=0
@@ -56,11 +47,14 @@ ignore_broadcast_ssid=0
 wpa=2
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
+country_code=GB
 ```
 
-### Settings
+### Overriding default behaviour
 
-By default, the access point's SSID is the hostname of the machine that runs the script. If the machine is a Raspberry Pi, the default passphrase is based in the device's serial number; otherwise it defaults to `12345678`. This allows for repeatable network credentials between sessions, making it easy for clients to connect to their local device even if the OS has been reset. The configuration of the network created by the access point is read from `defaults.conf`.
+Simply redefine the parameter you want to change in `/etc/default/wifi-ap-sta`, which is sourced by `wifi-ap-sta`.
+
+This file is sourced in the main `wifi-ap-sta` script, so you can evaluate bash expressions to create dynamic results.
 
 ### Steps
 
@@ -81,13 +75,7 @@ By default, the access point's SSID is the hostname of the machine that runs the
 
 ## Station Mode: Things To Note
 
-Even though the wireless interface is enabled, you may still need to configure it for it to work with `wpa_supplicant`. For example, in Raspberry Pi OS and derivatives you'll need to select your country during onboarding or set it manually using raspi-config.
-
-## AP Customization
-
-The access point network configuration can be customized by editing `defaults.conf` (located in `/etc/default/wifi-ap-sta/defaults.conf`); for example, setting up a different IP address for the network, the range of addresses that the DHCP server can lease, and the network SSID and passphrase.
-
-This file is sourced in the main `wifi-ap-sta` script, so you can use expressions that will be evaluated later on.
+Even though the wireless interface is enabled, you may still need to configure it for it to work with `wpa_supplicant`. For example, in Raspberry Pi OS and derivatives you'll need to select your country during onboarding or set it manually using `raspi-config`.
 
 ## How It Works
 

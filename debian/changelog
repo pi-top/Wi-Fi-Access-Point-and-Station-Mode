@@ -1,3 +1,12 @@
+wi-fi-access-point-and-station-mode (0.5.0-2) bullseye; urgency=medium
+
+  * Updated master workflow files
+  * Updated master workflow files
+  * Update README
+  * Update README
+
+ -- pi-top <deb-maintainers@pi-top.com>  Tue, 02 Nov 2021 12:30:41 +0000
+
 wi-fi-access-point-and-station-mode (0.5.0-1) bullseye; urgency=medium
 
   * Support 'enable' & 'disable' parameters (#35)

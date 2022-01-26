@@ -288,7 +288,7 @@ nohook wpa_supplicant"
     range ${STATIC_IP_PREFIX}.${DHCP_RANGE_START} ${STATIC_IP_PREFIX}.${DHCP_RANGE_END};
     option subnet-mask ${SUBNET_MASK};
     option routers ${IFACE_IP};
-    option domain-name-servers 8.8.8.8, 8.8.4.4;
+    option domain-name-servers ${IFACE_IP};
     option time-offset 0;
     option broadcast-address ${STATIC_IP_PREFIX}.255;
   }"

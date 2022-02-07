@@ -17,7 +17,8 @@ wifi_country() {
 }
 
 initialise_ap_values() {
-	AP_SSID="${AP_SSID:-$(hostname)}"
+	AP_SSID="${AP_SSID:-$(produce_ssid)}"
+	AP_PASSWORD="${AP_PASSWORD:-$(produce_password)}"
 	AP_IFACE="${AP_IFACE:-ap0}"
 	AP_MAC="${AP_MAC:-99:88:77:66:55:44}"
 	WIFI_IFACE="${WIFI_IFACE:-wlan0}"
@@ -40,6 +41,33 @@ initialise_ap_values() {
 	HOSTAPD_wpa_pairwise="${HOSTAPD_wpa_pairwise:-TKIP}"
 	HOSTAPD_rsn_pairwise="${HOSTAPD_rsn_pairwise:-CCMP}"
 	HOSTAPD_country_code="${HOSTAPD_country_code:-$(wifi_country)}"
+}
+
+SSID=$(hostname)
+
+
+rpi_serial="${rpi_serial:-12345678}"
+WPA_PASSPHRASE=
+
+produce_ssid() {
+	local SSID;
+	if [ -f "/run/pt_hub_serial" ]; then
+		SSID=$(cat /run/pt_hub_serial)
+	else
+		SSID=$(grep "Serial" /proc/cpuinfo | awk '{print $3}')
+	fi
+	SSID="${SSID:-12345678}"
+	SSID=$(echo "${SSID: -4}" | tr '[:lower:]' '[:upper:]')
+	echo "$(hostname)-${SSID}"
+}
+
+produce_password() {
+	local PASSPHRASE;
+	PASSPHRASE="$(shuf -i 1-99999999 -n 1)"
+	if [ ! -f "{$AP_MODE_CONFIG_FILE}" ]; then
+		echo "AP_PASSWORD=${PASSPHRASE}" >> "${AP_MODE_CONFIG_FILE}"
+	fi
+	echo "${PASSPHRASE}"
 }
 
 usage_and_exit() {
@@ -73,19 +101,6 @@ fi
 [[ -f "${AP_MODE_CONFIG_FILE}" ]] && source "${AP_MODE_CONFIG_FILE}"
 
 initialise_ap_values
-
-if [[ -z "${AP_PASSWORD:-}" ]]; then
-	rpi_serial=$(grep "Serial" /proc/cpuinfo | awk '{print $3}')
-
-	if [[ -n "${rpi_serial}" ]]; then
-		processed_serial="$(echo "${rpi_serial: -8}" | tr '[:lower:]' '[:upper:]')"
-		AP_PASSWORD="${processed_serial}"
-	else
-		fallback_password="12345678"
-		AP_PASSWORD="${fallback_password}"
-	fi
-
-fi
 
 main() {
 	if [[ "${command}" == "configure" ]]; then
@@ -285,12 +300,12 @@ nohook wpa_supplicant"
 		"${dhcpd_conf}" \
 		"Configuration for wireless access point network" \
 		"subnet ${SUBNET_IP} netmask ${SUBNET_MASK} {
-    range ${STATIC_IP_PREFIX}.${DHCP_RANGE_START} ${STATIC_IP_PREFIX}.${DHCP_RANGE_END};
-    option subnet-mask ${SUBNET_MASK};
-    option routers ${IFACE_IP};
-    option domain-name-servers 8.8.8.8, 8.8.4.4;
-    option time-offset 0;
-    option broadcast-address ${STATIC_IP_PREFIX}.255;
+	range ${STATIC_IP_PREFIX}.${DHCP_RANGE_START} ${STATIC_IP_PREFIX}.${DHCP_RANGE_END};
+	option subnet-mask ${SUBNET_MASK};
+	option routers ${IFACE_IP};
+	option domain-name-servers 8.8.8.8, 8.8.4.4;
+	option time-offset 0;
+	option broadcast-address ${STATIC_IP_PREFIX}.255;
   }"
 
 	echo "Configuring ${AP_IFACE} in /etc/default/isc-dhcp-server ..."

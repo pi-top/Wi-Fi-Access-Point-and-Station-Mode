@@ -19,7 +19,7 @@ where:
 
 ## Default Behaviour
 
-By default, the access point's SSID is the hostname of the machine that runs the script. If the machine is a Raspberry Pi, the default passphrase is based in the device's serial number; otherwise it defaults to `12345678`. This allows for repeatable network credentials between sessions, making it easy for clients to connect to their local device even if the OS has been reset.
+By default, the access point's SSID is the hostname of the machine that runs the script combined with the serial number of the device. The passphrase is an 8-digit random number.
 
 General AP mode/DHCP server configuration:
 ```

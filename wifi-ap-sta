@@ -43,12 +43,6 @@ initialise_ap_values() {
 	HOSTAPD_country_code="${HOSTAPD_country_code:-$(wifi_country)}"
 }
 
-SSID=$(hostname)
-
-
-rpi_serial="${rpi_serial:-12345678}"
-WPA_PASSPHRASE=
-
 produce_ssid() {
 	local SSID;
 	if [ -f "/run/pt_hub_serial" ]; then

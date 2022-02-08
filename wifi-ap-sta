@@ -45,9 +45,7 @@ initialise_ap_values() {
 
 produce_ssid() {
 	local SSID;
-	if [ -f "/run/pt_hub_serial" ]; then
-		SSID=$(cat /run/pt_hub_serial)
-	else
+	if [ -f "/proc/cpuinfo" ]; then
 		SSID=$(grep "Serial" /proc/cpuinfo | awk '{print $3}')
 	fi
 	SSID="${SSID:-12345678}"

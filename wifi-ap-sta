@@ -55,7 +55,7 @@ produce_ssid() {
 
 produce_password() {
 	local PASSPHRASE;
-	PASSPHRASE="$(shuf -i 1-99999999 -n 1)"
+	PASSPHRASE="$(shuf -i 10000000-99999999 -n 1)"
 	echo "AP_PASSWORD=${PASSPHRASE}" >> "${AP_MODE_CONFIG_FILE}"
 	echo "${PASSPHRASE}"
 }

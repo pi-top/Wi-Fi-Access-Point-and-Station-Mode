@@ -48,7 +48,7 @@ produce_ssid() {
 	if [ -f "/proc/cpuinfo" ]; then
 		SSID=$(grep "Serial" /proc/cpuinfo | awk '{print $3}')
 	fi
-	SSID="${SSID:-12345678}"
+	SSID="${SSID:-1234}"
 	SSID=$(echo "${SSID: -4}" | tr '[:lower:]' '[:upper:]')
 	echo "$(hostname)-${SSID}"
 }

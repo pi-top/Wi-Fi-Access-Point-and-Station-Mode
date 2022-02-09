@@ -55,7 +55,7 @@ produce_ssid() {
 
 produce_password() {
 	local PASSPHRASE;
-	PASSPHRASE="$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)"
+	PASSPHRASE="$(< /dev/urandom tr -dc a-km-z0-9 | head -c8)"
 	echo "AP_PASSWORD=${PASSPHRASE}" >> "${AP_MODE_CONFIG_FILE}"
 	echo "${PASSPHRASE}"
 }

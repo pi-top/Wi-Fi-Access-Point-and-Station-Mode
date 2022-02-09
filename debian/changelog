@@ -1,12 +1,5 @@
 wi-fi-access-point-and-station-mode (0.5.0-3) bullseye; urgency=medium
 
-  * [pre-commit.ci] pre-commit autoupdate (#43)
-  * Updated master workflow files
-  * [pre-commit.ci] pre-commit autoupdate (#45)
-  * Add signing key and passphrase to deb_release workflow
-  * Add pull request template
-  * Update PR template to track Github issues
-  * [pre-commit.ci] pre-commit autoupdate (#47)
   * Update default AP SSID & passphrase (#48)
 
  -- pi-top <deb-maintainers@pi-top.com>  Wed, 09 Feb 2022 12:13:10 +0000

@@ -69,6 +69,7 @@ usage_and_exit() {
 	echo -e "\\tstart\\t: use Raspberry Pi as wireless access point."
 	echo -e "\\tstop\\t: stop access point mode and restore previous configuration."
 	echo -e "\\tstatus\\t: display access point state and information."
+	echo -e "\\twait_interface\\t: wait until access point interface is ready."
 	echo ""
 	exit 1
 }
@@ -79,7 +80,7 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 command=${1:-}
-valid_commands=("configure" "start" "stop" "status" "enable" "disable")
+valid_commands=("configure" "start" "stop" "status" "enable" "disable" "wait_interface")
 if [[ -z "${command}" ]] || [[ ! "${valid_commands[*]}" =~ ${command} ]]; then
 	# shellcheck disable=SC2145
 	echo "Invalid argument: accepted values are: ${valid_commands[@]}."
@@ -103,6 +104,8 @@ main() {
 		do_enable
 	elif [[ "${command}" == "disable" ]]; then
 		do_disable
+	elif [[ "${command}" == "wait_interface" ]]; then
+		do_wait_interface
 	else
 		:
 	fi
@@ -116,7 +119,7 @@ do_configure() {
 do_enable() {
 	_enable_wireless_card_if_necessary
 	_create_virtual_interface_udev_rule
-	_add_configure_on_hostapd_start
+	_add_configure_on_isc_dhcp_server_start
 	_unmask_service_if_necessary hostapd
 	systemctl enable hostapd &>/dev/null
 }
@@ -145,6 +148,12 @@ do_stop() {
 	_remove_virtual_interface
 	_start_wifi_managed_mode
 }
+
+do_wait_interface() {
+	_wait_for_virtual_interface
+	_wait_for_virtual_interface_ip_addr
+}
+
 
 print_current_status() {
 	hostapd_state=$(systemctl show -p ActiveState --value hostapd)

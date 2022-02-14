@@ -95,6 +95,7 @@ fi
 [[ -f "${AP_MODE_CONFIG_FILE}" ]] && source "${AP_MODE_CONFIG_FILE}"
 
 initialise_ap_values
+
 main() {
 	if [[ "${command}" == "configure" ]]; then
 		do_configure
@@ -109,9 +110,10 @@ main() {
 		do_disable
 	elif [[ "${command}" == "wait_interface" ]]; then
 		do_wait_interface
-	elif [[ "${command}" == "status" ]]; then
-		print_current_status
+	else
+		:
 	fi
+	print_current_status
 }
 
 do_configure() {

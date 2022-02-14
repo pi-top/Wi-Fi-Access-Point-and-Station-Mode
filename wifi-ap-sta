@@ -401,11 +401,9 @@ _wait_for_virtual_interface() {
 }
 
 _wait_for_virtual_interface_ip_addr() {
-	iface="$(hostapd_cli get_config | head -n1 | awk '{print $NF}' | tr -d "'")"
-
-	if [[ -z "$(ip -f inet addr show "${iface}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; then
-		echo "Interface '${iface}' does not yet have an IP address - waiting..."
-		while [[ -z "$(ip -f inet addr show "${iface}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; do
+	if [[ -z "$(ip -f inet addr show "${AP_IFACE}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; then
+		echo "Interface '${AP_IFACE}' does not yet have an IP address - waiting..."
+		while [[ -z "$(ip -f inet addr show "${AP_IFACE}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; do
 			sleep 1
 		done
 	fi

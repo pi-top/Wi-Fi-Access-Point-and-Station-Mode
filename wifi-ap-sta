@@ -99,6 +99,7 @@ initialise_ap_values
 main() {
 	if [[ "${command}" == "configure" ]]; then
 		do_configure
+		exit
 	elif [[ "${command}" == "start" ]]; then
 		do_start
 	elif [[ "${command}" == "stop" ]]; then
@@ -109,6 +110,7 @@ main() {
 		do_disable
 	elif [[ "${command}" == "wait_interface" ]]; then
 		do_wait_interface
+		exit
 	else
 		:
 	fi

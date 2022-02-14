@@ -101,7 +101,6 @@ main() {
 		do_configure
 	elif [[ "${command}" == "start" ]]; then
 		do_start
-		print_current_status
 	elif [[ "${command}" == "stop" ]]; then
 		do_stop
 	elif [[ "${command}" == "enable" ]]; then

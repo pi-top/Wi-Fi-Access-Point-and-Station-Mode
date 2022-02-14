@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.6.0-2) bullseye; urgency=medium
+
+  * Wait for AP interface before starting isc-dhcp-server (#49)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Mon, 14 Feb 2022 15:18:30 +0000
+
 wi-fi-access-point-and-station-mode (0.6.0-1) bullseye; urgency=medium
 
   * Update default AP SSID & passphrase (#48)

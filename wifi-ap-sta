@@ -461,7 +461,7 @@ _start_wifi_managed_mode() {
 	if systemctl status pt-dhcp-server &>/dev/null; then
 		_restart_and_wait_for_service_state pt-dhcp-server exited
 	else
-		systemctl stop isc-dhcp-server
+		_restart_and_wait_for_service_state isc-dhcp-server running
 	fi
 	_restart_and_wait_for_service_state dhcpcd running
 	_restart_and_wait_for_service_state wpa_supplicant running

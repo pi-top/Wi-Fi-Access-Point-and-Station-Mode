@@ -1,4 +1,4 @@
-wi-fi-access-point-and-station-mode (0.7.1-2) bullseye; urgency=medium
+wi-fi-access-point-and-station-mode (0.7.2-1) bullseye; urgency=medium
 
   * Restart isc-dhcp-server on 'stop' command
 

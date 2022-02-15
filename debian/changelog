@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.7.2-1) bullseye; urgency=medium
+
+  * Restart isc-dhcp-server on 'stop' command
+
+ -- pi-top <deb-maintainers@pi-top.com>  Tue, 15 Feb 2022 10:54:24 +0000
+
 wi-fi-access-point-and-station-mode (0.7.1-1) bullseye; urgency=medium
 
   * Don't setup SSID & password on 'enable' command

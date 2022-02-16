@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.7.3-1) bullseye; urgency=medium
+
+  * Check if file exists before deleting
+
+ -- pi-top <deb-maintainers@pi-top.com>  Wed, 16 Feb 2022 19:09:19 +0000
+
 wi-fi-access-point-and-station-mode (0.7.2-1) bullseye; urgency=medium
 
   * Restart isc-dhcp-server on 'stop' command

@@ -207,7 +207,11 @@ EOF
 }
 
 _remove_configure_on_isc_dhcp_server_start() {
-	rm /lib/systemd/system/isc-dhcp-server.service.d/10-wifi-ap-sta.conf
+	ISC_DHCP_SERVER_DROP_IN="/lib/systemd/system/isc-dhcp-server.service.d/10-wifi-ap-sta.conf"
+	if [[ -f "${ISC_DHCP_SERVER_DROP_IN}" ]]; then
+		echo "Removing drop-in unit '${ISC_DHCP_SERVER_DROP_IN}'..."
+		rm "${ISC_DHCP_SERVER_DROP_IN}"
+	fi
 }
 
 ##########################

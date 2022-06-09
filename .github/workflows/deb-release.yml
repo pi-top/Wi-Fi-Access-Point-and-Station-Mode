@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
+    types: [closed]
+
 
 env:
   DEB_BUILD_DOCKER_IMAGE: "pitop/pi-top-os-deb-build"
@@ -15,6 +20,7 @@ env:
 jobs:
   release:
     runs-on: ubuntu-20.04
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged && github.head_ref == 'bump-changelog')
     steps:
       - name: Checkout code
         uses: actions/checkout@v2.4.0
@@ -85,3 +91,4 @@ jobs:
           draft: false
           prerelease: false
           files: ./artifacts/*
+          token: ${{ secrets.PAT_GITHUB }}

@@ -1,3 +1,11 @@
+wi-fi-access-point-and-station-mode (0.7.3-2) bullseye; urgency=medium
+
+  * Updated master workflow files
+  * Updated master workflow files
+  * [pre-commit.ci] pre-commit autoupdate (#58)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Thu, 14 Jul 2022 22:29:07 +0000
+
 wi-fi-access-point-and-station-mode (0.7.3-1) bullseye; urgency=medium
 
   * Check if file exists before deleting

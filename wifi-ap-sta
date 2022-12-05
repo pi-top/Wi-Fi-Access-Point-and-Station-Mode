@@ -134,6 +134,7 @@ do_enable() {
 do_disable() {
 	systemctl disable hostapd &>/dev/null
 	_clean_config_files
+	_disable_wireless_network_passthrough
 	_remove_configure_on_isc_dhcp_server_start
 	_remove_virtual_interface_udev_rule
 }
@@ -151,8 +152,8 @@ do_start() {
 
 do_stop() {
 	_stop_ap_mode_if_active
-	_disable_wireless_network_passthrough
 	_clean_config_files
+	_disable_wireless_network_passthrough
 	_remove_virtual_interface
 	_start_wifi_managed_mode
 }

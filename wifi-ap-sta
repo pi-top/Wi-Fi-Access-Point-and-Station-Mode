@@ -225,6 +225,8 @@ _delete_config_file_modifications() {
 	local id="${1}"
 	local file="${2}"
 
+	[ ! -f "${file}" ] && return
+
 	local start_line_regex="^# \[${id}\] START$"
 	local end_line_regex="^# \[${id}\] END$"
 	sed -i "/${start_line_regex}/,/${end_line_regex}/d" "${file}"

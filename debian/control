@@ -13,9 +13,11 @@ Depends:
  ${misc:Depends},
  dhcpcd5,
  hostapd,
+ iptables-persistent,
  isc-dhcp-server,
 # 'ifconfig' command
  net-tools,
+ netfilter-persistent,
  systemd,
  udev,
  wpasupplicant,

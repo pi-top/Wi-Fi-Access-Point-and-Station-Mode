@@ -120,6 +120,7 @@ main() {
 do_configure() {
 	initialise_ap_ssid_and_password
 	_patch_config_files
+	_enable_wireless_network_passthrough
 }
 
 do_enable() {
@@ -150,6 +151,7 @@ do_start() {
 
 do_stop() {
 	_stop_ap_mode_if_active
+	_disable_wireless_network_passthrough
 	_clean_config_files
 	_remove_virtual_interface
 	_start_wifi_managed_mode
@@ -327,6 +329,24 @@ nohook wpa_supplicant"
 else
 	INTERFACESv4=\"${AP_IFACE}\"
 fi"
+}
+
+_enable_wireless_network_passthrough() {
+	_configure_file \
+		/etc/sysctl.d/routed-ap.conf \
+		"Enable IPv4 routing from different networks" \
+		"net.ipv4.ip_forward=1"
+
+	iptables -t nat -A POSTROUTING -o "${WIFI_IFACE}" -j MASQUERADE
+
+	# Persist configuration on next boot
+	netfilter-persistent save
+}
+
+_disable_wireless_network_passthrough() {
+	_delete_config_file_modifications "${package_name}" "/etc/sysctl.d/routed-ap.conf"
+
+	rm -f /etc/iptables/rules.v4
 }
 
 ############################

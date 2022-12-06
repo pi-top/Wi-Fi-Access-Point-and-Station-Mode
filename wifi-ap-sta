@@ -335,6 +335,8 @@ fi"
 }
 
 _enable_wireless_network_passthrough() {
+	echo 1 > /proc/sys/net/ipv4/ip_forward
+
 	_configure_file \
 		/etc/sysctl.d/routed-ap.conf \
 		"Enable IPv4 routing from different networks" \
@@ -347,6 +349,8 @@ _enable_wireless_network_passthrough() {
 }
 
 _disable_wireless_network_passthrough() {
+	echo 0 > /proc/sys/net/ipv4/ip_forward
+
 	_delete_config_file_modifications "${package_name}" "/etc/sysctl.d/routed-ap.conf"
 
 	rm -f /etc/iptables/rules.v4

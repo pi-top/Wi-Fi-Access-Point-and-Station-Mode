@@ -1,3 +1,14 @@
+wi-fi-access-point-and-station-mode (0.7.3-2) bullseye; urgency=medium
+
+  * Updated master workflow files
+  * Updated master workflow files
+  * [pre-commit.ci] pre-commit autoupdate (#58)
+  * Enable routing between wireless networks (#61)
+  * Enable routing from networks for current session
+  * Don't persist network pass-through configuration (#62)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Tue, 06 Dec 2022 18:50:01 +0000
+
 wi-fi-access-point-and-station-mode (0.7.3-1) bullseye; urgency=medium
 
   * Check if file exists before deleting

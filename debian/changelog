@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.8.0-2) bullseye; urgency=medium
+
+  * Allow iptables command to fail when disabling AP mode
+
+ -- pi-top <deb-maintainers@pi-top.com>  Wed, 21 Dec 2022 18:28:33 +0000
+
 wi-fi-access-point-and-station-mode (0.8.0-1) bullseye; urgency=medium
 
   * Enable routing between wireless networks (#61, #62)

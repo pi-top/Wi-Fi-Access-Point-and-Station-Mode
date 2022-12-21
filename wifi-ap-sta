@@ -341,7 +341,9 @@ _enable_wireless_network_passthrough() {
 
 _disable_wireless_network_passthrough() {
 	echo 0 > /proc/sys/net/ipv4/ip_forward
-	iptables -t nat -D POSTROUTING -o "${WIFI_IFACE}" -j MASQUERADE
+	# We want this command to succeed even if the rule doesn't exist.
+	# This could happen when running the command after upgrading the package.
+	iptables -t nat -D POSTROUTING -o "${WIFI_IFACE}" -j MASQUERADE || true
 }
 
 ############################

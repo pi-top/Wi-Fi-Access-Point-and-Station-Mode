@@ -328,7 +328,10 @@ nohook wpa_supplicant"
 		/etc/default/isc-dhcp-server \
 		"Set DHCP server to serve IP addresses on Wireless Access Point interface" \
 		"if [ ! -z \"\${INTERFACESv4:-}\" ]; then
-	INTERFACESv4=\"\${INTERFACESv4} ${AP_IFACE}\"
+	INTERFACESv4=\"\${INTERFACESv4:-}\"
+	if \$(echo \"\${INTERFACESv4}\" | grep -Evq \"^${AP_IFACE}\$| ${AP_IFACE} | ${AP_IFACE}\$\"); then
+			INTERFACESv4=\"\${INTERFACESv4} ${AP_IFACE}\"
+	fi
 else
 	INTERFACESv4=\"${AP_IFACE}\"
 fi"

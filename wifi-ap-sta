@@ -127,6 +127,7 @@ do_enable() {
 	_enable_wireless_card_if_necessary
 	_create_virtual_interface_udev_rule
 	_add_pre_conditions_on_isc_dhcp_server_start
+	_reload_systemd_daemon
 	_unmask_service_if_necessary hostapd
 	systemctl enable hostapd &>/dev/null
 }
@@ -145,6 +146,8 @@ do_start() {
 	_create_virtual_interface
 	_wait_for_virtual_interface
 	do_configure
+	_add_pre_conditions_on_isc_dhcp_server_start
+	_reload_systemd_daemon
 	_start_ap_mode
 	_restart_networking_services
 	_wait_for_virtual_interface_ip_addr
@@ -154,6 +157,7 @@ do_stop() {
 	_stop_ap_mode_if_active
 	_clean_config_files
 	_disable_wireless_network_passthrough
+	_remove_configure_on_isc_dhcp_server_start
 	_remove_virtual_interface
 	_start_wifi_managed_mode
 }
@@ -215,6 +219,10 @@ _remove_configure_on_isc_dhcp_server_start() {
 		echo "Removing drop-in unit '${ISC_DHCP_SERVER_DROP_IN}'..."
 		rm "${ISC_DHCP_SERVER_DROP_IN}"
 	fi
+}
+
+_reload_systemd_daemon() {
+	systemctl daemon-reload
 }
 
 ##########################

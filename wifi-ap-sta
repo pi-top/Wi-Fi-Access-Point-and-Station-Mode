@@ -158,6 +158,7 @@ do_stop() {
 	_clean_config_files
 	_disable_wireless_network_passthrough
 	_remove_configure_on_isc_dhcp_server_start
+	_reload_systemd_daemon
 	_remove_virtual_interface
 	_start_wifi_managed_mode
 }
@@ -434,9 +435,19 @@ _wait_for_virtual_interface() {
 
 _wait_for_virtual_interface_ip_addr() {
 	if [[ -z "$(ip -f inet addr show "${AP_IFACE}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; then
+		SLEEP_COUNTER=0
 		echo "Interface '${AP_IFACE}' does not yet have an IP address - waiting..."
 		while [[ -z "$(ip -f inet addr show "${AP_IFACE}" | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')" ]]; do
 			sleep 1
+			if [ $SLEEP_COUNTER -eq 5 ]; then
+				echo "Trying to reconfigure interface ${AP_IFACE} after waiting for ${SLEEP_COUNTER} seconds"
+				_set_ap_interface_static_ip
+				_restart_and_wait_for_service_state hostapd running || true
+			elif [ $SLEEP_COUNTER -eq 10 ]; then
+				echo "Timeout waiting for ${AP_IFACE} to get an IP address after ${SLEEP_COUNTER}, exiting..."
+				exit 1
+			fi
+			SLEEP_COUNTER=$[$SLEEP_COUNTER +1]
 		done
 	fi
 }
@@ -465,10 +476,16 @@ _unmask_service_if_necessary() {
 	fi
 }
 
-_start_ap_mode() {
-	echo "Starting Wifi: Access Point Mode ..."
+_set_ap_interface_static_ip() {
 	ifconfig "${AP_IFACE}" "${IFACE_IP}" netmask "${SUBNET_MASK}"
 	ifconfig "${AP_IFACE}" up
+}
+
+_start_ap_mode() {
+	echo "Starting Wifi: Access Point Mode ..."
+
+	_set_ap_interface_static_ip
+
 	if systemctl status pt-dhcp-server &>/dev/null; then
 		_restart_and_wait_for_service_state pt-dhcp-server exited
 	else

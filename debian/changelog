@@ -1,3 +1,11 @@
+wi-fi-access-point-and-station-mode (0.8.2-1) bullseye; urgency=medium
+
+  * Check for existing variable in dhcp server config file
+  * Add dhcp server pre-conditions on 'start'
+  * Timeout when waiting for AP interface to get an IP
+
+ -- pi-top <deb-maintainers@pi-top.com>  Wed, 03 May 2023 13:33:52 +0000
+
 wi-fi-access-point-and-station-mode (0.8.1-1) bullseye; urgency=medium
 
   * Allow iptables command to fail when disabling AP mode

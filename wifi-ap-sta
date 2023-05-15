@@ -211,6 +211,7 @@ _add_pre_conditions_on_isc_dhcp_server_start() {
 [Service]
 ExecStartPre=/usr/bin/wifi-ap-sta configure
 ExecStartPre=/usr/bin/wifi-ap-sta wait_interface
+Restart=on-failure
 EOF
 }
 

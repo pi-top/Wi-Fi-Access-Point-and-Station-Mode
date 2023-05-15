@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.8.2-2) bullseye; urgency=medium
+
+  * Restart dhcp server on failure (#66)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Mon, 15 May 2023 18:27:50 +0000
+
 wi-fi-access-point-and-station-mode (0.8.2-1) bullseye; urgency=medium
 
   * Check for existing variable in dhcp server config file

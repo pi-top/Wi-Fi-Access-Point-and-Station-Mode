@@ -134,7 +134,7 @@ do_enable() {
 do_disable() {
 	# To support upgrading from old versions
 	systemctl disable hostapd &>/dev/null
-	
+
 	_clean_config_files
 	_disable_wireless_network_passthrough
 	_remove_configure_on_isc_dhcp_server_start
@@ -493,7 +493,7 @@ _set_ap_interface_static_ip() {
 
 _start_ap_mode() {
 	echo "Starting Wifi: Access Point Mode ..."
-	
+
 	_unmask_service_if_necessary hostapd
 	_set_ap_interface_static_ip
 
@@ -511,10 +511,10 @@ _stop_ap_mode_if_active() {
 	if systemctl status hostapd &>/dev/null; then
 		echo "Stopping Wifi: Access Point Mode ..."
 		systemctl stop hostapd
-		
+
 		# To support upgrading from old versions
 		systemctl disable hostapd &>/dev/null
-		
+
 		echo "Stopped AP mode"
 	fi
 	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null

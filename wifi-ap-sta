@@ -129,11 +129,12 @@ do_enable() {
 	_add_pre_conditions_on_isc_dhcp_server_start
 	_reload_systemd_daemon
 	_unmask_service_if_necessary hostapd
-	systemctl enable hostapd &>/dev/null
 }
 
 do_disable() {
+	# To support upgrading from old versions
 	systemctl disable hostapd &>/dev/null
+
 	_clean_config_files
 	_disable_wireless_network_passthrough
 	_remove_configure_on_isc_dhcp_server_start
@@ -211,6 +212,7 @@ _add_pre_conditions_on_isc_dhcp_server_start() {
 [Service]
 ExecStartPre=/usr/bin/wifi-ap-sta configure
 ExecStartPre=/usr/bin/wifi-ap-sta wait_interface
+ExecStartPost=systemctl restart hostapd.service
 Restart=on-failure
 EOF
 }
@@ -362,7 +364,7 @@ _disable_wireless_network_passthrough() {
 ############################
 # STATE REFRESH MANAGEMENT #
 ############################
-_service_is_ready() {
+_service_has_state() {
 	local service_name="${1}"
 	local service_state="${2:-running}"
 	if [ "$(systemctl show -p ActiveState --value "${service_name}")" != "active" ] || [ "$(systemctl show -p SubState --value "${service_name}")" != "${service_state}" ]; then
@@ -372,16 +374,23 @@ _service_is_ready() {
 	fi
 }
 
+_wait_for_service_state() {
+	service_name="${1}"
+	service_state="${2}"
+	echo "Waiting for service '${service_name}' state to be '${service_state}'..."
+	while ! _service_has_state "${service_name}" "${service_state}"; do
+		sleep 1
+	done
+	echo "Service '${service_name}' state is now '${service_state}'"
+}
+
 _restart_and_wait_for_service_state() {
 	local service_name="${1}"
 	local service_state="${2:-running}"
 	echo "Restarting service ${service_name}..."
 	systemctl restart "${service_name}"
-	if ! _service_is_ready "${service_name}" "${service_state}"; then
-		echo "Service '${service_name}' isn't ready - waiting..."
-		while ! _service_is_ready "${service_name}" "${service_state}"; do
-			sleep 1
-		done
+	if ! _service_has_state "${service_name}" "${service_state}"; then
+		_wait_for_service_state "${service_name}" "${service_state}"
 	fi
 }
 
@@ -485,16 +494,15 @@ _set_ap_interface_static_ip() {
 _start_ap_mode() {
 	echo "Starting Wifi: Access Point Mode ..."
 
+	_unmask_service_if_necessary hostapd
 	_set_ap_interface_static_ip
 
 	if systemctl status pt-dhcp-server &>/dev/null; then
 		_restart_and_wait_for_service_state pt-dhcp-server exited
 	else
 		_restart_and_wait_for_service_state isc-dhcp-server running
+		_wait_for_service_state hostapd running
 	fi
-	_unmask_service_if_necessary hostapd
-	_restart_and_wait_for_service_state hostapd running || true
-	systemctl enable hostapd &>/dev/null
 	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
 	echo "Started AP mode with SSID ${AP_SSID}"
 }
@@ -503,7 +511,10 @@ _stop_ap_mode_if_active() {
 	if systemctl status hostapd &>/dev/null; then
 		echo "Stopping Wifi: Access Point Mode ..."
 		systemctl stop hostapd
+
+		# To support upgrading from old versions
 		systemctl disable hostapd &>/dev/null
+
 		echo "Stopped AP mode"
 	fi
 	wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null

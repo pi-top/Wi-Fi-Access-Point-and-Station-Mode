@@ -339,13 +339,13 @@ nohook wpa_supplicant"
 	_configure_file \
 		/etc/default/isc-dhcp-server \
 		"Set DHCP server to serve IP addresses on Wireless Access Point interface" \
-		"if [ ! -z \"\${INTERFACESv4:-}\" ]; then
-	INTERFACESv4=\"\${INTERFACESv4:-}\"
-	if \$(echo \"\${INTERFACESv4}\" | grep -Evq \"^${AP_IFACE}\$| ${AP_IFACE} | ${AP_IFACE}\$\"); then
-			INTERFACESv4=\"\${INTERFACESv4} ${AP_IFACE}\"
-	fi
-else
-	INTERFACESv4=\"${AP_IFACE}\"
+		"WLAN_AP0_IS_ACTIVE=\$(ifconfig -a ${AP_IFACE} 2>/dev/null)
+if [ -z \"\${WLAN_AP0_IS_ACTIVE}\" ]; then
+	# If interface is inactive, remove it from INTERFACESv4
+	INTERFACESv4=\$(echo \"\${INTERFACESv4}\" | sed -E 's/${AP_IFACE}//g')
+elif \$(echo \"\${INTERFACESv4}\" | grep -Evq \"^${AP_IFACE}| ${AP_IFACE} | ${AP_IFACE}$\"); then
+	# Add it to INTERFACESv4 if not there already
+	INTERFACESv4=\"\${INTERFACESv4} ${AP_IFACE}\"
 fi"
 }
 

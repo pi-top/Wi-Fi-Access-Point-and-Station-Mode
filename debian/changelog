@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.10.0-2) bullseye; urgency=medium
+
+  * DHCP server uses interface only if it exists (#70)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Fri, 19 May 2023 04:34:42 +0000
+
 wi-fi-access-point-and-station-mode (0.10.0-1) bullseye; urgency=medium
 
   * Updated master workflow files

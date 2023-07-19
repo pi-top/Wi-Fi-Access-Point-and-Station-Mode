@@ -22,6 +22,7 @@ initialise_ap_ssid_and_password() {
 }
 
 initialise_ap_values() {
+	ETH_IFACE="${ETH_IFACE:-eth0}"
 	AP_IFACE="${AP_IFACE:-wlan_ap0}"
 	AP_MAC="${AP_MAC:-99:88:77:66:55:44}"
 	WIFI_IFACE="${WIFI_IFACE:-wlan0}"
@@ -352,13 +353,15 @@ fi"
 _enable_wireless_network_passthrough() {
 	echo 1 > /proc/sys/net/ipv4/ip_forward
 	iptables -t nat -A POSTROUTING -o "${WIFI_IFACE}" -j MASQUERADE
+	iptables -t nat -A POSTROUTING -o "${ETH_IFACE}" -j MASQUERADE
 }
 
 _disable_wireless_network_passthrough() {
 	echo 0 > /proc/sys/net/ipv4/ip_forward
-	# We want this command to succeed even if the rule doesn't exist.
+	# We want these commands to succeed even if the rule doesn't exist.
 	# This could happen when running the command after upgrading the package.
 	iptables -t nat -D POSTROUTING -o "${WIFI_IFACE}" -j MASQUERADE || true
+	iptables -t nat -D POSTROUTING -o "${ETH_IFACE}" -j MASQUERADE || true
 }
 
 ############################

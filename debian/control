@@ -11,7 +11,7 @@ Package: wifi-ap-sta
 Architecture: all
 Depends:
  ${misc:Depends},
- dhcpcd5,
+ dhcpcd5 | network-manager,
  hostapd,
  iptables,
  isc-dhcp-server,

@@ -12,7 +12,11 @@ AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
 wifi_country() {
 	local country
 	country=$(wpa_cli -i "$WIFI_IFACE" get country 2>/dev/null)
-	[ "${country}" = "FAIL" ] && country="US"
+	if [ "${country}" = "FAIL" ] && [ -x "$(command -v raspi-config)" ]; then
+		country=$(raspi-config nonint get_wifi_country)
+	else
+		country="US"
+	fi
 	echo "${country:-US}"
 }
 

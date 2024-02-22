@@ -41,13 +41,10 @@ jobs:
           fi
           echo "matrix={$architecture, $DISTROS}">>$GITHUB_OUTPUT
 
-  release:
-    needs: check-architecture
+  check-versions:
     runs-on: ubuntu-20.04
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged && github.head_ref == 'bump-changelog')
-    strategy:
-      fail-fast: false
-      matrix: ${{fromJSON(needs.check-architecture.outputs.matrix)}}
+    outputs:
+      CURRENT_VERSION: ${{ steps.current_version.outputs.CURRENT_VERSION }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -72,6 +69,25 @@ jobs:
         if: ${{ env.LATEST_TAG != '' }}
         run: dpkg --compare-versions ${{ env.CURRENT_VERSION }} gt ${{ env.LATEST_TAG }}
 
+      - name: Set current version as output
+        id: current_version
+        run:
+          echo "CURRENT_VERSION=${{ env.CURRENT_VERSION }}">>"$GITHUB_OUTPUT"
+
+  release:
+    needs: [check-architecture, check-versions]
+    runs-on: ubuntu-20.04
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged && github.head_ref == 'bump-changelog')
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJSON(needs.check-architecture.outputs.matrix)}}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 0
+
       - name: Patch lintian-overrides
         if: matrix.distro  == 'bullseye'
         run:
@@ -92,7 +108,7 @@ jobs:
           additional_env: |
             DATA="${{ secrets.DATA }}"
             TLS_KEY="${{ secrets.CERT_PRIVATE_KEY }}"
-            PYTHON_PACKAGE_VERSION="${{ steps.version.outputs.tag_latest_ltrimv }}"
+            PYTHON_PACKAGE_VERSION="${{ needs.check-versions.outputs.CURRENT_VERSION }}"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
@@ -134,11 +150,11 @@ jobs:
       - name: Zip distro artifacts
         run: |
           ls -l ./artifacts
-          zip ${{ matrix.distro }}.deb.zip ./artifacts/*.deb
+          zip ${{ matrix.distro }}-${{ matrix.architecture }}.deb.zip ./artifacts/*.deb
 
       - name: Create release and upload package
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.PAT_GITHUB }}
           file: ./${{ matrix.distro}}-${{ matrix.architecture }}.deb.zip
-          tag: "v${{ env.CURRENT_VERSION }}"
+          tag: "v${{ needs.check-versions.outputs.CURRENT_VERSION }}"

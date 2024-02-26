@@ -11,15 +11,11 @@ Package: wifi-ap-sta
 Architecture: all
 Depends:
  ${misc:Depends},
- dhcpcd5 | network-manager,
- hostapd,
+ ${customDeps:networking},
  iptables,
- isc-dhcp-server,
 # 'ifconfig' command
  net-tools,
- systemd,
  udev,
- wpasupplicant,
 Suggests:
  pt-display-port,
 Description: Wi-Fi Access Point and Station Mode

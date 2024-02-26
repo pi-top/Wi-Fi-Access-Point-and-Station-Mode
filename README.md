@@ -79,7 +79,7 @@ Even though the wireless interface is enabled, you may still need to configure i
 
 ## How It Works
 
-This application makes use of ``hostapd`` and ``isc-dhcp-server`` to work.
+On bookworm, this application creates an access-point connection using the ``NetworkManager``. On older distributions, this application makes use of ``hostapd`` and ``isc-dhcp-server`` to do this.
 
 ``hostapd`` (`host` `a`ccess `p`oint `d`aemon) is a user space daemon software that can enable a network interface card to act as an access point and authentication server.
 

@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.12.0-2) bullseye; urgency=medium
+
+  * Package for bookworm (#74)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Wed, 28 Feb 2024 15:57:59 +0000
+
 wi-fi-access-point-and-station-mode (0.12.0-1) bullseye; urgency=medium
 
   * Add internet passthrough from ethernet to AP hotspot (#72)

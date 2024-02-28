@@ -13,11 +13,9 @@ else
 endif
 
 override_dh_install:
-	dh_install
 ifeq ($(distribution),bookworm)
 	mv _wifi-ap-sta-with-network-manager wifi-ap-sta
-	dh_install wifi-ap-sta usr/bin/
 else
 	mv _wifi-ap-sta-with-hostapd wifi-ap-sta
-	dh_install wifi-ap-sta usr/bin/
 endif
+	dh_install

@@ -1,0 +1,2 @@
+# wifi-ap-sta file depends on the distro; check rules file
+wifi-ap-sta usr/bin/

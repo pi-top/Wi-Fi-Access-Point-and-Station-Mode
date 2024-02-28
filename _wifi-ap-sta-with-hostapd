@@ -12,8 +12,12 @@ AP_MODE_CONFIG_FILE="/etc/default/wifi-ap-sta"
 wifi_country() {
 	local country
 	country=$(wpa_cli -i "$WIFI_IFACE" get country 2>/dev/null)
-	[ "${country}" = "FAIL" ] && country="00"
-	echo "${country:-00}"
+	if [ "${country}" = "FAIL" ] && [ -x "$(command -v raspi-config)" ]; then
+		country=$(raspi-config nonint get_wifi_country)
+	else
+		country="US"
+	fi
+	echo "${country:-US}"
 }
 
 initialise_ap_ssid_and_password() {
@@ -288,8 +292,13 @@ _clean_config_files() {
 		mv "${hostapd_conf}.orig" "${hostapd_conf}"
 	fi
 
-	echo "Restoring /etc/dhcpcd.conf"
-	_delete_config_file_modifications "${package_name}" /etc/dhcpcd.conf
+	if [ -f /etc/dhcpcd.conf ]; then
+		echo "Restoring /etc/dhcpcd.conf"
+		_delete_config_file_modifications "${package_name}" /etc/dhcpcd.conf
+	elif [ -x "$(command -v nmcli)" ]; then
+		nmcli connection down "${AP_IFACE}" || true
+		nmcli connection delete "${AP_IFACE}" || true
+	fi
 
 	echo "Restoring /etc/dhcp/dhcpd.conf"
 	_delete_config_file_modifications "${package_name}" /etc/dhcp/dhcpd.conf
@@ -314,13 +323,21 @@ _patch_config_files() {
 	echo -e "interface=${AP_IFACE}\\nssid=${AP_SSID}\\nwpa_passphrase=${AP_PASSWORD}" >>"${hostapd_conf}"
 
 	dhcpcd_conf="/etc/dhcpcd.conf"
-	echo "Setting static IP configuration in ${dhcpcd_conf} ..."
-	_configure_file \
+	if [ -f "${dhcpcd_conf}" ]; then
+		echo "Setting static IP configuration in ${dhcpcd_conf} ..."
+		_configure_file \
 		"${dhcpcd_conf}" \
 		"Static IP configuration for wireless access point interface" \
 		"interface ${AP_IFACE}
-static ip_address=${IFACE_IP}/24
-nohook wpa_supplicant"
+	static ip_address=${IFACE_IP}/24
+	nohook wpa_supplicant"
+	elif [ -x "$(command -v nmcli)" ]; then
+		nmcli c mod "${AP_IFACE}" ipv4.addresses "${IFACE_IP}"/24 ipv4.method manual ifname "${AP_IFACE}"
+		nmcli connection down "${AP_IFACE}" || true
+		nmcli connection up "${AP_IFACE}"
+		# disable wpa_supplicant for connection ?
+		nmcli c mod "${AP_IFACE}" connection.autoconnect no
+	fi
 
 	dhcpd_conf="/etc/dhcp/dhcpd.conf"
 	echo "Setting subnet configuration in ${dhcpd_conf} ..."
@@ -398,7 +415,9 @@ _restart_and_wait_for_service_state() {
 }
 
 _restart_networking_services() {
-	_restart_and_wait_for_service_state dhcpcd running
+	if [ -f /etc/dhcpcd.conf ]; then
+		_restart_and_wait_for_service_state dhcpcd running
+	fi
 	_restart_and_wait_for_service_state wpa_supplicant running
 }
 
@@ -531,7 +550,9 @@ _start_wifi_managed_mode() {
 	else
 		_restart_and_wait_for_service_state isc-dhcp-server running
 	fi
-	_restart_and_wait_for_service_state dhcpcd running
+	if [ -f /etc/dhcpcd.conf ]; then
+		_restart_and_wait_for_service_state dhcpcd running
+	fi
 	_restart_and_wait_for_service_state wpa_supplicant running
 }
 

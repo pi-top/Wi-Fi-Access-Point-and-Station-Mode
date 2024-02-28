@@ -2,3 +2,20 @@
 
 %:
 	dh $@
+
+distribution := $(shell (grep VERSION_CODENAME /etc/os-release | cut -d'=' -f2))
+
+override_dh_gencontrol:
+ifeq ($(distribution),bookworm)
+	dh_gencontrol -- '-VcustomDeps:networking=network-manager'
+else
+	dh_gencontrol -- '-VcustomDeps:networking=dhcpcd5,hostapd,systemd,wpasupplicant,isc-dhcp-server'
+endif
+
+override_dh_install:
+ifeq ($(distribution),bookworm)
+	mv _wifi-ap-sta-with-network-manager wifi-ap-sta
+else
+	mv _wifi-ap-sta-with-hostapd wifi-ap-sta
+endif
+	dh_install

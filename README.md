@@ -35,21 +35,6 @@ DHCP_RANGE_START=10
 DHCP_RANGE_END=50
 ```
 
-`hostapd` configuration:
-```
-ctrl_interface=/var/run/hostapd
-ctrl_interface_group=0
-hw_mode=g
-channel=6
-macaddr_acl=0
-auth_algs=1
-ignore_broadcast_ssid=0
-wpa=2
-wpa_pairwise=TKIP
-rsn_pairwise=CCMP
-country_code=GB
-```
-
 ### Overriding default behaviour
 
 Simply redefine the parameter you want to change in `/etc/default/wifi-ap-sta`, which is sourced by `wifi-ap-sta`.
@@ -62,14 +47,25 @@ This file is sourced in the main `wifi-ap-sta` script, so you can evaluate bash 
 
 * Enable wireless interface via `rfkill` if necessary
 * Create a virtual network interface to be used by the access point
-* Patch system network configuration files
+
+On bullseye and older:
+* Patch system network configuration files (`hostapd.conf`, `dhcpcd.conf` and `dhcpd.conf`)
 * Start access point service through `hostapd`
 * Restart networking services
 
+On bookworm:
+* Create and start a new connection using `nmcli`
+
 #### Stop
 
+On bullseye and older:
 * Stop `hostapd` access point service
 * Restore patched networking configuration files
+
+On bookworm:
+* Stop and remove connection
+
+Also:
 * Remove virtual network interface
 * Restart networking services
 
@@ -79,7 +75,7 @@ Even though the wireless interface is enabled, you may still need to configure i
 
 ## How It Works
 
-This application makes use of ``hostapd`` and ``isc-dhcp-server`` to work.
+On bookworm, this application creates an access-point connection using the ``NetworkManager``. On older distributions, this application makes use of ``hostapd`` and ``isc-dhcp-server`` to do this.
 
 ``hostapd`` (`host` `a`ccess `p`oint `d`aemon) is a user space daemon software that can enable a network interface card to act as an access point and authentication server.
 

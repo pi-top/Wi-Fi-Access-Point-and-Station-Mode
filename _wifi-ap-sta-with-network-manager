@@ -41,7 +41,7 @@ initialise_ap_values() {
 }
 
 produce_ssid() {
-	local SSID;
+	local SSID
 	if [ -f "/proc/cpuinfo" ]; then
 		SSID=$(grep "Serial" /proc/cpuinfo | awk '{print $3}')
 	fi
@@ -92,8 +92,7 @@ initialise_ap_values
 
 main() {
 	if [[ "${command}" == "configure" ]]; then
-		# deprecated
-		return
+		do_configure
 	elif [[ "${command}" == "start" ]]; then
 		do_start
 	elif [[ "${command}" == "stop" ]]; then
@@ -112,34 +111,41 @@ main() {
 }
 
 do_configure() {
+	_enable_wireless_card_if_necessary
+	_stop_ap_mode_if_active
+	_create_virtual_interface
+	_wait_for_virtual_interface
 	initialise_ap_ssid_and_password
 	_enable_wireless_network_passthrough
+	_create_network_manager_connection
+	_start_ap_mode
+	_wait_for_virtual_interface_ip_addr
 }
 
 do_enable() {
 	_enable_wireless_card_if_necessary
 	_create_virtual_interface_udev_rule
+	_add_pre_conditions_on_network_manager_service_start
 }
 
 do_disable() {
 	_disable_wireless_network_passthrough
 	_remove_virtual_interface_udev_rule
+	_remove_configure_on_network_manager_service_start
 }
 
 do_start() {
-	_enable_wireless_card_if_necessary
-	_stop_ap_mode_if_active
-	_create_virtual_interface
-	_wait_for_virtual_interface
 	do_configure
-	_start_ap_mode
-	_wait_for_virtual_interface_ip_addr
+	_add_pre_conditions_on_network_manager_service_start
+	_reload_systemd_daemon
 }
 
 do_stop() {
 	_stop_ap_mode_if_active
 	_disable_wireless_network_passthrough
 	_remove_virtual_interface
+	_remove_configure_on_network_manager_service_start
+	_reload_systemd_daemon
 	_start_wifi_managed_mode
 }
 
@@ -147,7 +153,6 @@ do_wait_interface() {
 	_wait_for_virtual_interface
 	_wait_for_virtual_interface_ip_addr
 }
-
 
 print_current_status() {
 	if ! nmcli con show --active | grep -q "${CONNECTION_NAME}" &>/dev/null; then
@@ -174,52 +179,45 @@ print_current_status() {
 	echo -e "Access Point IP Address:\\t${ip_addr}"
 }
 
+###########################################
+# NETWORK-MANAGER SERVICE FILE MANAGEMENT #
+###########################################
+_add_pre_conditions_on_network_manager_service_start() {
+	rm -f /lib/systemd/system/NetworkManager.service.d/10-wifi-ap-sta.conf
+	mkdir -p /lib/systemd/system/NetworkManager.service.d
+	cat <<EOF >/lib/systemd/system/NetworkManager.service.d/10-wifi-ap-sta.conf
+[Service]
+ExecStartPost=/usr/bin/wifi-ap-sta configure
+Restart=on-failure
+EOF
+}
+
+_remove_configure_on_network_manager_service_start() {
+	SERVICE_DROP_IN_FILE="/lib/systemd/system/NetworkManager.service.d/10-wifi-ap-sta.conf"
+	if [[ -f "${SERVICE_DROP_IN_FILE}" ]]; then
+		echo "Removing drop-in unit '${SERVICE_DROP_IN_FILE}'..."
+		rm "${SERVICE_DROP_IN_FILE}"
+	fi
+}
+
+_reload_systemd_daemon() {
+	systemctl daemon-reload
+}
+
 _enable_wireless_network_passthrough() {
-	echo 1 > /proc/sys/net/ipv4/ip_forward
+	echo 1 >/proc/sys/net/ipv4/ip_forward
 	iptables -t nat -A POSTROUTING -o "${WIFI_IFACE}" -j MASQUERADE
 	iptables -t nat -A POSTROUTING -o "${ETH_IFACE}" -j MASQUERADE
 }
 
 _disable_wireless_network_passthrough() {
-	echo 0 > /proc/sys/net/ipv4/ip_forward
+	echo 0 >/proc/sys/net/ipv4/ip_forward
 	# We want these commands to succeed even if the rule doesn't exist.
 	# This could happen when running the command after upgrading the package.
 	iptables -t nat -D POSTROUTING -o "${WIFI_IFACE}" -j MASQUERADE || true
 	iptables -t nat -D POSTROUTING -o "${ETH_IFACE}" -j MASQUERADE || true
 }
 
-############################
-# STATE REFRESH MANAGEMENT #
-############################
-_service_has_state() {
-	local service_name="${1}"
-	local service_state="${2:-running}"
-	if [ "$(systemctl show -p ActiveState --value "${service_name}")" != "active" ] || [ "$(systemctl show -p SubState --value "${service_name}")" != "${service_state}" ]; then
-		return 1
-	else
-		return 0
-	fi
-}
-
-_wait_for_service_state() {
-	service_name="${1}"
-	service_state="${2}"
-	echo "Waiting for service '${service_name}' state to be '${service_state}'..."
-	while ! _service_has_state "${service_name}" "${service_state}"; do
-		sleep 1
-	done
-	echo "Service '${service_name}' state is now '${service_state}'"
-}
-
-_restart_and_wait_for_service_state() {
-	local service_name="${1}"
-	local service_state="${2:-running}"
-	echo "Restarting service ${service_name}..."
-	systemctl restart "${service_name}"
-	if ! _service_has_state "${service_name}" "${service_state}"; then
-		_wait_for_service_state "${service_name}" "${service_state}"
-	fi
-}
 
 #################################
 # PHYSICAL INTERFACE MANAGEMENT #
@@ -308,7 +306,7 @@ _start_ap_mode() {
 	echo "Starting Wifi: Access Point Mode ..."
 
 	_set_ap_interface_static_ip
-	_setup_with_network_manager
+	_start_network_manager_connection
 
 	# wpa_cli -i "${WIFI_IFACE}" reconfigure &>/dev/null
 	echo "Started AP mode with SSID ${AP_SSID}"
@@ -331,7 +329,7 @@ _package_is_installed() {
 	[[ $(dpkg-query --show --showformat='${db:Status-Status}\n' "${1}" 2>/dev/null) = installed ]]
 }
 
-_setup_with_network_manager() {
+_create_network_manager_connection() {
 	nmcli con add con-name "${CONNECTION_NAME}" \
 		ifname "${AP_IFACE}" \
 		type wifi \
@@ -341,11 +339,12 @@ _setup_with_network_manager() {
 		802-11-wireless.mode ap \
 		802-11-wireless.band bg \
 		ipv4.method shared \
-		ipv4.addresses "${IFACE_IP}/${SUBNET}"  \
+		ipv4.addresses "${IFACE_IP}/${SUBNET}" \
 		ipv4.gateway "${IFACE_IP}"
-
-	nmcli con up "${CONNECTION_NAME}"
 }
 
+_start_network_manager_connection() {
+	nmcli con up "${CONNECTION_NAME}"
+}
 
 main

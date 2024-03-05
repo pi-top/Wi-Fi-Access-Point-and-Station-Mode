@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.12.0-3) bullseye; urgency=medium
+
+  * Add drop-in unit file on NetworkManager service (#76)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Tue, 05 Mar 2024 15:58:31 +0000
+
 wi-fi-access-point-and-station-mode (0.12.0-2) bullseye; urgency=medium
 
   * Package for bookworm (#74)

@@ -339,8 +339,7 @@ _create_network_manager_connection() {
 		802-11-wireless.mode ap \
 		802-11-wireless.band bg \
 		ipv4.method shared \
-		ipv4.addresses "${IFACE_IP}/${SUBNET}" \
-		ipv4.gateway "${IFACE_IP}"
+		ipv4.addresses "${IFACE_IP}/${SUBNET}"
 }
 
 _start_network_manager_connection() {

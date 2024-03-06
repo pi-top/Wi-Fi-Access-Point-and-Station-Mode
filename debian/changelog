@@ -1,3 +1,9 @@
+wi-fi-access-point-and-station-mode (0.12.0-4) bullseye; urgency=medium
+
+  * Don't set gateway to avoid connectivity issues (#78)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Wed, 06 Mar 2024 18:45:04 +0000
+
 wi-fi-access-point-and-station-mode (0.12.0-3) bullseye; urgency=medium
 
   * Add drop-in unit file on NetworkManager service (#76)

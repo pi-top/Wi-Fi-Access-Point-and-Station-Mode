@@ -14,13 +14,13 @@ env:
   CHANGELOG_AUTHOR_EMAIL: "deb-maintainers@pi-top.com"
   PACKAGECLOUD_REPO: "experimental"
   OS: "debian"
-  DISTROS: "\"distro\":[\"bookworm\", \"bullseye\"]"
+  DISTROS: "\"distro\":[\"bookworm\"]"
   HOST_COMPILE: "\"architecture\":[\"amd64\"]"
   X_COMPILE: "\"architecture\":[\"armhf\", \"arm64\"]"  # ARM 32 and 64 bit
 
 jobs:
   check-architecture:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -42,7 +42,7 @@ jobs:
 
   build-debian-package:
     needs: check-architecture
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix: ${{fromJSON(needs.check-architecture.outputs.matrix)}}
@@ -63,11 +63,6 @@ jobs:
           author_email: ${{ env.CHANGELOG_AUTHOR_EMAIL }}
           snapshot_number: ${{ steps.version.outputs.distance }}
           since: ${{ steps.version.outputs.tag_latest }}
-
-      - name: Patch lintian-overrides
-        if: matrix.distro  == 'bullseye'
-        run:
-          cp -r debian/bullseye-overrides/* debian/ || true
 
       - name: Build Debian package
         uses: pi-top/debian-package-build-action@master
@@ -91,19 +86,19 @@ jobs:
           echo "ARTIFACT_PREFIX=$(basename -s .dsc "$(find . -name "*.dsc")")" >> $GITHUB_ENV
 
       - name: Upload binary package artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.distro }}-${{ env.ARTIFACT_PREFIX }}.deb
           path: ./artifacts/*.deb
 
       - name: Upload source package artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.distro }}-${{ env.ARTIFACT_PREFIX }}.deb-src
           path: ./artifacts/*.tar.xz
 
       - name: Upload package build metadata artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_PREFIX }}.metadata
           path: |

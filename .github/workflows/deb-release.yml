@@ -15,13 +15,13 @@ env:
   DEB_BUILD_DOCKER_BRANCH: "master"
   PACKAGECLOUD_REPO: "pi-top-os-unstable"
   OS: "debian"
-  DISTROS: "\"distro\":[\"bookworm\", \"bullseye\"]"
+  DISTROS: "\"distro\":[\"bookworm\"]"
   HOST_COMPILE: "\"architecture\":[\"amd64\"]"
   X_COMPILE: "\"architecture\":[\"armhf\", \"arm64\"]"  # ARM 32 and 64 bit
 
 jobs:
   check-architecture:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -42,7 +42,7 @@ jobs:
           echo "matrix={$architecture, $DISTROS}">>$GITHUB_OUTPUT
 
   check-versions:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     outputs:
       CURRENT_VERSION: ${{ steps.current_version.outputs.CURRENT_VERSION }}
     steps:
@@ -76,7 +76,7 @@ jobs:
 
   release:
     needs: [check-architecture, check-versions]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged && github.head_ref == 'bump-changelog')
     strategy:
       fail-fast: false
@@ -87,11 +87,6 @@ jobs:
         with:
           submodules: true
           fetch-depth: 0
-
-      - name: Patch lintian-overrides
-        if: matrix.distro  == 'bullseye'
-        run:
-          cp -r debian/bullseye-overrides/* debian/ || true
 
       - name: Build Debian package
         uses: pi-top/debian-package-build-action@master
@@ -111,7 +106,7 @@ jobs:
             PYTHON_PACKAGE_VERSION="${{ needs.check-versions.outputs.CURRENT_VERSION }}"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: "dsc"
           path: "./artifacts"

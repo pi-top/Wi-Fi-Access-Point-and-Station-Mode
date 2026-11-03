@@ -43,6 +43,7 @@ jobs:
 
   check-versions:
     runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged && github.head_ref == 'bump-changelog')
     outputs:
       CURRENT_VERSION: ${{ steps.current_version.outputs.CURRENT_VERSION }}
     steps:

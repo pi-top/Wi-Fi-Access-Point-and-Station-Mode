@@ -274,7 +274,7 @@ _wait_for_virtual_interface_ip_addr() {
 				echo "Timeout waiting for ${AP_IFACE} to get an IP address after ${SLEEP_COUNTER}, exiting..."
 				exit 1
 			fi
-			SLEEP_COUNTER=$[$SLEEP_COUNTER +1]
+			SLEEP_COUNTER=$((SLEEP_COUNTER + 1))
 		done
 	fi
 }

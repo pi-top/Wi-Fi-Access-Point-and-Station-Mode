@@ -11,7 +11,7 @@ Package: wifi-ap-sta
 Architecture: all
 Depends:
  ${misc:Depends},
- ${customDeps:networking},
+ network-manager,
  iptables,
 # 'ifconfig' command
  net-tools,

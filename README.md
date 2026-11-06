@@ -48,21 +48,10 @@ This file is sourced in the main `wifi-ap-sta` script, so you can evaluate bash 
 * Enable wireless interface via `rfkill` if necessary
 * Create a virtual network interface to be used by the access point
 
-On bullseye and older:
-* Patch system network configuration files (`hostapd.conf`, `dhcpcd.conf` and `dhcpd.conf`)
-* Start access point service through `hostapd`
-* Restart networking services
-
-On bookworm:
 * Create and start a new connection using `nmcli`
 
 #### Stop
 
-On bullseye and older:
-* Stop `hostapd` access point service
-* Restore patched networking configuration files
-
-On bookworm:
 * Stop and remove connection
 
 Also:
@@ -75,11 +64,7 @@ Even though the wireless interface is enabled, you may still need to configure i
 
 ## How It Works
 
-On bookworm, this application creates an access-point connection using the ``NetworkManager``. On older distributions, this application makes use of ``hostapd`` and ``isc-dhcp-server`` to do this.
-
-``hostapd`` (`host` `a`ccess `p`oint `d`aemon) is a user space daemon software that can enable a network interface card to act as an access point and authentication server.
-
-``isc-dhcp-server`` (`I`nternet `S`ystems `C`onsortium's `-` `D`ynamic `H`ost `C`onfiguration `P`rotocol `-` `server`) is a network service that enables host computers to be automatically assigned settings from a server as opposed to manually configuring each network host.
+This application creates an access-point connection using ``NetworkManager``.
 
 ### Constraints
 

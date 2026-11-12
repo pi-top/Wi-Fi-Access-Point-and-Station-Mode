@@ -1,3 +1,15 @@
+wi-fi-access-point-and-station-mode (0.12.0-5) bullseye; urgency=medium
+
+  * Debian workflows: drop bullseye, move off the dead runner
+  * Remove debian/bullseye-overrides
+  * Create releases with the workflow's own token
+  * Remove the Dependabot config
+  * Only check the release version when releasing
+  * Use $(( )) for arithmetic in the AP/STA scripts
+  * Build for bookworm only (#89)
+
+ -- pi-top <deb-maintainers@pi-top.com>  Fri, 06 Nov 2026 17:02:50 +0000
+
 wi-fi-access-point-and-station-mode (0.12.0-4) bullseye; urgency=medium
 
   * Don't set gateway to avoid connectivity issues (#78)

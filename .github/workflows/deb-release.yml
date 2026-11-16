@@ -150,9 +150,19 @@ jobs:
           ls -l ./artifacts
           zip ${{ matrix.distro }}-${{ matrix.architecture }}.deb.zip ./artifacts/*.deb
 
+      - name: Set release notes from changelog
+        run: |
+          {
+            echo 'RELEASE_NOTES<<EOF_RELEASE_NOTES'
+            awk 'NR>1 && /^ -- /{exit} NR>1' debian/changelog | sed -e 's/^  //' -e '/^$/d'
+            echo 'EOF_RELEASE_NOTES'
+          } >> $GITHUB_ENV
+
       - name: Create release and upload package
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./${{ matrix.distro}}-${{ matrix.architecture }}.deb.zip
           tag: "v${{ needs.check-versions.outputs.CURRENT_VERSION }}"
+          release_name: "v${{ needs.check-versions.outputs.CURRENT_VERSION }}"
+          body: ${{ env.RELEASE_NOTES }}

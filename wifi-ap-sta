@@ -51,8 +51,12 @@ produce_ssid() {
 }
 
 produce_password() {
-	local PASSPHRASE;
-	PASSPHRASE="$(< /dev/urandom tr -dc a-km-z0-9 | head -c8)"
+	local PASSPHRASE="";
+	# finite input, so tr isn't killed by a closed pipe
+	while [ "${#PASSPHRASE}" -lt 8 ]; do
+		PASSPHRASE+="$(head -c 64 /dev/urandom | tr -dc a-km-z0-9)"
+	done
+	PASSPHRASE="${PASSPHRASE:0:8}"
 	echo "AP_PASSWORD=${PASSPHRASE}" >> "${AP_MODE_CONFIG_FILE}"
 	echo "${PASSPHRASE}"
 }
@@ -212,10 +216,13 @@ _enable_wireless_network_passthrough() {
 
 _disable_wireless_network_passthrough() {
 	echo 0 >/proc/sys/net/ipv4/ip_forward
-	# We want these commands to succeed even if the rule doesn't exist.
-	# This could happen when running the command after upgrading the package.
-	iptables -t nat -D POSTROUTING -o "${WIFI_IFACE}" -j MASQUERADE || true
-	iptables -t nat -D POSTROUTING -o "${ETH_IFACE}" -j MASQUERADE || true
+	# The rules may already be gone (e.g. 'disable' after 'stop', or after an upgrade)
+	local IFACE
+	for IFACE in "${WIFI_IFACE}" "${ETH_IFACE}"; do
+		if iptables -t nat -C POSTROUTING -o "${IFACE}" -j MASQUERADE 2>/dev/null; then
+			iptables -t nat -D POSTROUTING -o "${IFACE}" -j MASQUERADE
+		fi
+	done
 }
 
 
